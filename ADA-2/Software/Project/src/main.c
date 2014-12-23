@@ -36,6 +36,7 @@ int main(void)
 	
 	while (1)
   {
+	
 	if(dataCounter == 1000)
 	{
 		uint16_t mod;
@@ -57,7 +58,9 @@ int main(void)
 			
 			frame[54] = (uint8_t)(mod & 0xFF);
 			frame[53] = (uint8_t)(mod >> 8);
+				LED_Toggle(Yellow);
 			VCP_DataTx(frame, 56);
+				LED_Toggle(Yellow);
 		}
 		dataCounter = 0;
 	}
@@ -69,20 +72,20 @@ static void TIM_Init(void)
 {
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
-  /* TIM7 clock enable */
-  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM7, ENABLE);
-  /* Enable TIM7 Interrupt */
-  NVIC_InitStructure.NVIC_IRQChannel = TIM7_IRQn;
-  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 1;
-  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-  NVIC_Init(&NVIC_InitStructure);
-  /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Prescaler =  42000 - 1;
-  TIM_TimeBaseStructure.TIM_Period = 50 - 1;
-  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-  TIM_TimeBaseInit(TIM7, &TIM_TimeBaseStructure);
+//  /* TIM7 clock enable */
+//  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM7, ENABLE);
+//  /* Enable TIM7 Interrupt */
+//  NVIC_InitStructure.NVIC_IRQChannel = TIM7_IRQn;
+//  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
+//  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
+//  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
+//  NVIC_Init(&NVIC_InitStructure);
+//  /* Time base configuration */
+//  TIM_TimeBaseStructure.TIM_Prescaler =  42000 - 1;
+//  TIM_TimeBaseStructure.TIM_Period = 50 - 1;
+//  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
+//  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+//  TIM_TimeBaseInit(TIM7, &TIM_TimeBaseStructure);
   /* TIM7 enable counter */
   //TIM_Cmd(TIM7, ENABLE);
   /* TIM7 enable update interrupt */
@@ -97,7 +100,7 @@ static void TIM_Init(void)
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
   /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Prescaler =  N_DEFAULT - 1;
+  TIM_TimeBaseStructure.TIM_Prescaler =  N_44_1KHZ - 1;
   TIM_TimeBaseStructure.TIM_Period = 1;
   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;

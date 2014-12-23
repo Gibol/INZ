@@ -177,7 +177,7 @@ static uint16_t VCP_Ctrl (uint32_t Cmd, uint8_t* Buf, uint32_t Len)
 uint16_t VCP_DataTx (uint8_t* Buf, uint32_t Len)
 {
 	uint32_t tx_counter = 0;
-	LED_Toggle(Green);
+	
 	
 	while(tx_counter < Len){
 		APP_Rx_Buffer[APP_Rx_ptr_in] = *(Buf+tx_counter);
@@ -217,7 +217,7 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
   uint32_t i;
 	static int status = 0;
 	
-	LED_Toggle(Yellow);
+
 	
 	if(currentIndex == 0 && Buf[0] != START_BYTE)
 	{

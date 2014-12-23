@@ -77,62 +77,73 @@ void ADA2Device::dataAvailable()
             if(buffer.size() < 56*40) return;
         }
 
-        qDebug()<<buffer.toHex();
-        buffer.clear();
-        return;
+        QVector<double> samples;
+        //qDebug()<<buffer.toHex();
 
-
-        for(int i = 0; i < buffer.size()/56; i++)
+        for(int i = 0; i < 40; i++)
         {
             static int badcnt = 0;
-            QByteArray candidate = buffer.mid(0,56);
+            QByteArray frame = buffer.mid(0,56);
 
             // checking again (next frames can be invalid)
-            if(candidate.at(0) != 100 || candidate.at(55) != 101 || candidate.at(1) != 89)
+            if(frame.at(0) != 100 || frame.at(55) != 101 || frame.at(1) != 89)
             {
 
-                qDebug()<<badcnt++<<"BAD FRAME!"<<candidate.toHex();
+                // qDebug()<<badcnt++<<"BAD FRAME!"<<frame.toHex();
                 return;
             }
-            //data was properly alligned, we can remove it;
-            buffer.remove(0,56);
+
 
             //now check for other transmission erros by checking control sum;
             quint16 controlSum = 0;
             for(int b = 0; b < 50; b++)
             {
-                controlSum += (quint8)candidate[b+3];
+                controlSum += (quint8)frame[b+3];
                 //qDebug()<<QString::number(controlSum, 16);
             }
-            quint16 controlSumInFrame = candidate[53];
-                    controlSumInFrame <<= 8;
-                    controlSumInFrame &= 0xFF00;
-                    controlSumInFrame |= ((quint8)candidate[54] &0xFF);
+            quint16 controlSumInFrame = frame[53];
+            controlSumInFrame <<= 8;
+            controlSumInFrame &= 0xFF00;
+            controlSumInFrame |= ((quint8)frame[54] &0xFF);
 
             if(controlSum != controlSumInFrame)
             {
-                qDebug()<<badcnt++<<"BAD FRAME (CRC)!"<<controlSum<<controlSumInFrame<<candidate.mid(53).toHex();
+                //qDebug()<<badcnt++<<"BAD FRAME (CRC)!"<<controlSum<<controlSumInFrame<<frame.mid(53).toHex();
+                return;
                 //qDebug()<<candidate.mid(2,2000).toHex();
             }
             else
             {
-//                static int goodCnt = 0;
-//                qDebug()<<"GOOD CNT"<<goodCnt++;
-                qDebug()<<QString::number(candidate[2]);
-                if(((quint8)candidate[2]) == 39) buffer.clear();
+                //                static int goodCnt = 0;
+                //                qDebug()<<"GOOD CNT"<<goodCnt++;
+                //qDebug()<<QString::number(frame[2]);
+                //if(((quint8)frame[2]) == 39) buffer.clear();
 
-                QVector<double> samples;
                 for(int b = 0; b < 50; b+=2)
                 {
-                    quint16 sample = candidate[2+b];
+                    quint16 sample = frame[3+b];
                     sample <<= 8;
                     sample &= 0xFF00;
-                    sample |= (candidate[3+b] & 0xFF);
+                    sample |= (frame[4+b] & 0xFF);
                     samples.append( (double)sample);
                 }
-                emit newSampleData(samples);
+
             }
+
+            buffer.remove(0,56);
         }
+
+        if(samples.size() == 1000)
+        {
+            emit newSampleData(samples);
+            static int uu = 0;
+            qDebug()<<"GOOD"<<uu++;
+        }
+        else
+        {
+            qDebug()<<samples.count();
+        }
+
 
 
     }
