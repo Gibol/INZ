@@ -10,21 +10,36 @@
 
 
 /* CONFIG SECTION */
-typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2, TestSignal3}   																SignalSource;
-typedef enum { AnalogOutput1, AnalogOutput2}                                        																SignalOutput;
-typedef enum { F8KHZ = 5250, F11_025KHZ = 3809, F16KHZ = 2652, F22_05KHZ = 1904, F32KHZ = 1312, F44_1KHZ = 952}     SampligFrequency;
-typedef enum { F_GROUP1, F_GROUP2}      																																						FrequencyGroup;
-typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}    																CompressionType;
-typedef enum { Word8bits, Word12Bits}                                               																WordLenght;
-typedef enum { Idle, Busy }       																																									DeviceStatus;
+    typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
+    typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}                                CompressionType;
+    typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
+    typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
+    typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
+    typedef enum { Bit0, Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8, Bit9, Bit10, Bit11, BitRandom, BitNone }   BitError;
+    typedef enum { Idle, Busy }                                                                                     DeviceStatus;
+    typedef enum { Start = 255, Stop = 0 }                                                                          StartStopCommand;
+		
+		typedef enum { F_GROUP1, F_GROUP2 }																																							FrequencyGrpup;
+		
+    typedef struct {
+        SampligFrequency samplingFrequency;
+        WordLenght wordLenght;
+        CompressionType compressionType;
+        SignalSource signalSource;
+        SignalOutput signalOutput;
+        BitError bitError;
+    } ADASettings;
+		
+
+		
 #define SAMPLE_BUFFER_SIZE 1000 //must devide by 50
 
 /* EO CONFIG SECTION */
 
 /* LED SECTION */
 #define LED_GPIO 				GPIOD
-#define LED_GREEN_Pin		GPIO_Pin_12
-#define LED_YELLOW_Pin	GPIO_Pin_11
+#define LED_GREEN_Pin		GPIO_Pin_11
+#define LED_YELLOW_Pin	GPIO_Pin_12
 #define LED_CLOCK				RCC_AHB1Periph_GPIOD
 typedef enum {Green, Yellow} LED;
 void LED_Init(void);
@@ -67,13 +82,8 @@ void TIM6_DAC_IRQHandler(void);
 /* EO TIMER SECTION */
 
 
-
-
 // Function prototypes
 void get_dec_str (uint8_t* str, uint8_t len, uint32_t val);
 
-
-// Exported variables
-//extern volatile uint32_t system_time_counter;
 
 #endif

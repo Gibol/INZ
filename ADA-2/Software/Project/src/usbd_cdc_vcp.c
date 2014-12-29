@@ -53,13 +53,19 @@ extern uint32_t APP_Rx_ptr_in;    /* Increment this pointer or roll it back to
                                      start address when writing received data
                                      in the buffer APP_Rx_Buffer. */
 	
-#define  CONFIG_FRAME_SIZE  	((uint8_t) 10)
-#define  DISCOVERY_FRAME_SIZE ((uint8_t) 5)
-#define  START_BYTE	 					((uint8_t) 100)
-#define  STOP_BYTE	 					((uint8_t) 101)
-#define  DISCOVERY_FRAME	 		((uint8_t) 44)
-#define  CONFIG_FRAME	 				((uint8_t) 55)
-static uint8_t rxBuff[CONFIG_FRAME_SIZE];
+extern ADASettings currentSettings;
+extern uint8_t configurationChangedFlag;	
+extern DeviceStatus devStatus;
+	
+#define  CONFIG_FRAME_SIZE  		((uint8_t) 11)
+#define  DISCOVERY_FRAME_SIZE 	((uint8_t) 5)
+#define  CONVERSION_FRAME_SIZE  ((uint8_t) 6)
+#define  START_BYTE	 						((uint8_t) 100)
+#define  STOP_BYTE	 						((uint8_t) 101)
+#define  DISCOVERY_FRAME	 			((uint8_t) 44)
+#define  CONFIG_FRAME	 					((uint8_t) 55)
+#define  CONVERSION_FRAME			  ((uint8_t) 66)
+#define  LONGEST_FRAME_SIZE			CONFIG_FRAME_SIZE
 static uint8_t currentIndex = 0;	
 
 /* Private function prototypes -----------------------------------------------*/
@@ -218,50 +224,75 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 {
 	
   uint32_t i;
-	static int status = 0;
 	
-	if(Len > 10) return USBD_OK;
+	/* too much data in buffer - transmission error */
+	if(Len > LONGEST_FRAME_SIZE) return USBD_OK;
 	
+	/* invalid data - transmission error */
 	if(currentIndex == 0 && Buf[0] != START_BYTE)
 	{
 		currentIndex = 0;
-		status = -1;
 		return USBD_OK;
 	}
 	
-	if(Buf[0] == START_BYTE && Buf[1] == DISCOVERY_FRAME && Buf[2] == 0 && Buf[3] == 0 && Buf[4] == STOP_BYTE)
+	/* check for discovery frame */
+	if(Buf[0] == START_BYTE && Buf[1] == DISCOVERY_FRAME 
+		&& Buf[DISCOVERY_FRAME_SIZE -3] == 0 && Buf[DISCOVERY_FRAME_SIZE -2] == 0 && Buf[DISCOVERY_FRAME_SIZE -1] == STOP_BYTE)
 	{
 		VCP_DataTx(Buf, 5);
 		return USBD_OK;
 	}
 	
-	if(Buf[0] == START_BYTE && Buf[1] == CONFIG_FRAME && Buf[9] == STOP_BYTE)
+	/* check for conversion start stop command frame */
+	if(Buf[0] == START_BYTE && Buf[1] == CONVERSION_FRAME && Buf[CONVERSION_FRAME_SIZE -1] == STOP_BYTE)
+	{
+		if(Buf[2] == Buf[4])
+		{
+			if(Buf[2] == Stop) 
+			{
+				devStatus = Idle;
+				TIM_Cmd(TIM6, DISABLE); 
+			}
+			else if(Buf[2] == Start) 
+			{
+				devStatus = Busy;
+				TIM_Cmd(TIM6, ENABLE); 
+			}
+		}
+	}
+	
+	/* check for config frame */
+	if(Buf[0] == START_BYTE && Buf[1] == CONFIG_FRAME && Buf[CONFIG_FRAME_SIZE -1] == STOP_BYTE)
 	{
 				uint16_t mod = 0, mod2 = 0;
-				for(i = 0; i < 5; i++)
+				for(i = 0; i < 6; i++)
 				{
 					mod += Buf[2 + i];
 				}
 				
-				mod2 = Buf[7] << 8;
-				mod2 |= Buf[8];
-				
+				mod2 = (Buf[CONFIG_FRAME_SIZE -3] << 8);
+				mod2 |= Buf[CONFIG_FRAME_SIZE -2];
+
 				if(mod == mod2)
 				{
+					/* save settings */
+					currentSettings.samplingFrequency = (SampligFrequency) 	Buf[2];
+     			currentSettings.compressionType = 	(CompressionType) 	Buf[3];
+					currentSettings.wordLenght =  			(WordLenght) 				Buf[4];
+					currentSettings.signalSource = 			(SignalSource) 			Buf[5];
+					currentSettings.signalOutput = 			(SignalOutput) 			Buf[6];
+					currentSettings.bitError = 					(BitError) 					Buf[7];
+					configurationChangedFlag = 1;
+					
+					/* create and send response */
 					Buf[2] = 0;
 					Buf[3] = 0;
 					Buf[4] = STOP_BYTE;
 					VCP_DataTx(Buf, 5);
-				}
-				
+				}				
 				return USBD_OK;
 	}
   
-
-	
-
-	
-
   return USBD_OK;
 }
 

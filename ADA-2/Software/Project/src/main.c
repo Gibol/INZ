@@ -22,6 +22,9 @@ uint16_t SIN_32K[32] = {
 2048,1648,1264,910,600,345,156,39,
 0,39,156,345,600,910,1264,1648};
 
+uint16_t N_TABLE[] = {
+	5250, 3809, 2652, 1904, 1312, 952 };
+
 /* System variables */
 __IO uint16_t uhADCxConvertedValue[2] = {0};
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END ;
@@ -30,13 +33,12 @@ __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END ;
 static volatile uint8_t sampleBuffer[SAMPLE_BUFFER_SIZE];
 static volatile uint16_t dataCounter = 0;
 
-/* Configuration variables initialisation */
-static SignalSource sigSource = TestSignal1;
-static SignalOutput sigOutput = AnalogOutput1;
-static SampligFrequency samFrequency = F44_1KHZ;
-static FrequencyGroup freqGroup = F_GROUP1;
-static DeviceStatus devStatus = Idle;
-static WordLenght wordLen = Word12Bits;
+/* Configuration structure */
+ADASettings currentSettings;
+static FrequencyGrpup freqGroup;
+uint8_t configurationChangedFlag = 0;
+DeviceStatus devStatus = Idle;
+static uint8_t deviceConfiguredFlag = 0;
 
 int main(void)
 {
@@ -60,9 +62,24 @@ int main(void)
 	
 	while (1)
   {
-	
+		if(configurationChangedFlag == 1)
+		{
+			TIM_ChangeN( N_TABLE[currentSettings.samplingFrequency] );
+			if( currentSettings.samplingFrequency == F8KHZ ||  currentSettings.samplingFrequency == F16KHZ || currentSettings.samplingFrequency == F32KHZ)
+			{
+				freqGroup = F_GROUP2;
+			}
+			else
+			{
+				freqGroup = F_GROUP1;
+			}
+			configurationChangedFlag = 0;
+			deviceConfiguredFlag = 1;
+			LED_On(Yellow);
+		}
+		
 		/* Send collected samples when ready, and configured */
-		if(dataCounter == SAMPLE_BUFFER_SIZE && devStatus == Busy)
+		if(dataCounter == SAMPLE_BUFFER_SIZE && devStatus == Busy && deviceConfiguredFlag == 1)
 		{
 			uint16_t mod;
 			int i,j;
@@ -81,13 +98,17 @@ int main(void)
 					mod += sampleBuffer[(50*j) + i];
 				}
 				
-				frame[54] = (uint8_t)(mod & 0xFF);
+				frame[54] = (uint8_t) mod;
 				frame[53] = (uint8_t)(mod >> 8);
-					LED_Toggle(Yellow);
+
 				VCP_DataTx(frame, 56);
-					LED_Toggle(Yellow);
+				LED_Toggle(Green);
 			}
 			dataCounter = 0;
+		}
+		else if(devStatus == Idle)
+		{
+			LED_Off(Green);
 		}
 	}
 } 
@@ -113,7 +134,7 @@ static void TIM_Init(void)
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
   TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
   /* TIM6 enable counter */
-  TIM_Cmd(TIM6, ENABLE); 
+  //TIM_Cmd(TIM6, ENABLE); 
   /* TIM6 enable update interrupt */
   TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
 }
@@ -140,34 +161,38 @@ void TIM_ChangeN(int N)
 
 void TIM6_DAC_IRQHandler(void)
 {	
-	uint16_t val;
+	/* sample value */
+	static uint16_t val;
+	
+	/* counter for the test signal generation */
   static uint8_t waveGenCnt = 0;
 	
-	if(sigSource == AnalogInput1)
+	/* take sample from source */
+	if(currentSettings.signalSource == AnalogInput1)
 	{
 		val = uhADCxConvertedValue[0];
 	}
-	else if(sigSource == AnalogInput2)
+	else if(currentSettings.signalSource == AnalogInput2)
 	{
 		val = uhADCxConvertedValue[1];
 	}
-	else if(sigSource == TestSignal1)
+	else if(currentSettings.signalSource == TestSignal1)
 	{
 		
 		if(freqGroup == F_GROUP1)
 		{
 			val = SIN_44K[waveGenCnt];
-			if(samFrequency == F44_1KHZ)
+			if(currentSettings.samplingFrequency == F44_1KHZ)
 			{
 				
 				waveGenCnt++;	
 			}
-			else if(samFrequency == F22_05KHZ)
+			else if(currentSettings.samplingFrequency == F22_05KHZ)
 			{
 				
 				waveGenCnt+=2;
 			}
-			else if(samFrequency == F11_025KHZ)
+			else if(currentSettings.samplingFrequency == F11_025KHZ)
 			{
 				
 				waveGenCnt+=4;
@@ -178,43 +203,47 @@ void TIM6_DAC_IRQHandler(void)
 		else if(freqGroup == F_GROUP2)
 		{
 			val = SIN_32K[waveGenCnt];
-			if(samFrequency == F32KHZ)
+			if(currentSettings.samplingFrequency == F32KHZ)
 			{
 				
 				waveGenCnt++;	
 			}
-			else if(samFrequency == F16KHZ)
+			else if(currentSettings.samplingFrequency == F16KHZ)
 			{
 				
 				waveGenCnt+=2;
 			}
-			else if(samFrequency == F8KHZ)
+			else if(currentSettings.samplingFrequency == F8KHZ)
 			{
 				
 				waveGenCnt+=4;
 			}
 			if(waveGenCnt >= 32) waveGenCnt = 0;
-		}
-		
-		
-		
+		}	
 	}
 	
-  if(sigOutput == AnalogOutput1)
+	/* Do sample compression */
+	// compression function call here
+	
+	/* Output the sample */
+  if(currentSettings.signalOutput == AnalogOutput1)
 	{
 		DAC_SetChannel1Data(DAC_Align_12b_R, val);
 	}
-	else if(sigOutput == AnalogOutput2)
+	else if(currentSettings.signalOutput == AnalogOutput2)
 	{
 		DAC_SetChannel2Data(DAC_Align_12b_R, val);
 	}
 	
+	/* save sample in buffer for usb transmission */
 	if(dataCounter < SAMPLE_BUFFER_SIZE)
 	{
 		sampleBuffer[dataCounter+1] = (uint8_t) val ;
 		sampleBuffer[dataCounter] = ((uint8_t)(val >> 8)&0xFF) ;
-		dataCounter++;
-	}		
+		dataCounter+=2;
+	}
+
+	/* clear interrupt flag */
 	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
 }
 

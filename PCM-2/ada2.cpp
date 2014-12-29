@@ -1,4 +1,5 @@
 #include "ada2.h"
+#include <QThread>
 
 ADA2Device::ADA2Device(QObject *parent) :
     QSerialPort(parent)
@@ -6,23 +7,41 @@ ADA2Device::ADA2Device(QObject *parent) :
     connectionStatus = Disconnected;
     deviceStatus = Idle;
     diagnosticResponseRecieved = false;
-    currentSettings.compressionType = CompressionNone;
-    currentSettings.samplingFrequency = F44_1KHZ;
-    currentSettings.signalSource = TestSignal1;
-    currentSettings.wordLenght = Word12Bits;
-    currentSettings.signalOutput = AnalogOutput1;
+    currentSettings = initSettingsStructure();
+    frameTimeoutCounter = 0;
 
     timerID = startTimer(TIMER_UPDATE_INTERVAL);
     connect(this, SIGNAL(readyRead()), this, SLOT(dataAvailable()));
     connect(this, SIGNAL(error(QSerialPort::SerialPortError)), this, SLOT(handleError(QSerialPort::SerialPortError)));
 }
 
+ADA2Device::ADASettings ADA2Device::initSettingsStructure()
+{
+    ADASettings initStructure;
+
+    initStructure.signalOutput = ADA2Device::AnalogOutput1;
+    initStructure.bitError = ADA2Device::BitNone;
+    initStructure.compressionType = ADA2Device::CompressionNone;
+    initStructure.samplingFrequency = ADA2Device::F44_1KHZ;
+    initStructure.signalSource = ADA2Device::AnalogInput1;
+    initStructure.wordLenght = ADA2Device::Word12Bits;
+
+    return initStructure;
+}
+
+void ADA2Device::newSettings(ADA2Device::ADASettings settings)
+{
+    currentSettings = settings;
+    sendConfigurationFrame();
+}
+
 void ADA2Device::timerEvent(QTimerEvent *event)
 {
 
     event->accept();
+
     QList<QSerialPortInfo> availablePorts = QSerialPortInfo::availablePorts();
-    qDebug()<<"timer";
+
     if(connectionStatus == Disconnected)
     {
         qDebug()<<"Poszukiwanie urządzenia...";
@@ -42,7 +61,6 @@ void ADA2Device::timerEvent(QTimerEvent *event)
                         qDebug()<<"Ustawienie parametrow transmisji powiodło się.";
                         sendDignosticFrame();
                         connectionStatus = Waiting;
-                        // send frame to device for confirmation;
                     }
                 }
                 else
@@ -56,7 +74,7 @@ void ADA2Device::timerEvent(QTimerEvent *event)
     }
     else if(deviceStatus == Idle)
     {
-        qDebug()<<"idle";
+        //qDebug()<<"idle";
         static int waitingCount = 0;
         // if device is idle check if its responding
         sendDignosticFrame();
@@ -74,6 +92,15 @@ void ADA2Device::timerEvent(QTimerEvent *event)
             {
                 connectionStatus = Disconnected;
             }
+        }
+    }
+    else if(deviceStatus == Busy)
+    {
+        frameTimeoutCounter++;
+        if(frameTimeoutCounter == 10)
+        {
+            sendStartStopCommand(Stop);
+            frameTimeoutCounter = 0;
         }
     }
 
@@ -107,13 +134,32 @@ void ADA2Device::sendConfigurationFrame()
     mod += (quint8) currentSettings.signalSource;
     data.append((quint8) currentSettings.signalOutput);
     mod += (quint8) currentSettings.signalOutput;
+    data.append((quint8) currentSettings.bitError);
+    mod += (quint8) currentSettings.bitError;
     QByteArray modArray(2, (char)0);
     modArray[1] = (quint8) mod;
     modArray[0] = (quint8) mod >> 8;
     data.append(modArray);
     data.append(101);
     write(data);
+    qDebug()<<"write config";
     waitForBytesWritten(100);
+}
+
+void ADA2Device::sendStartStopCommand(ADA2Device::StartStopCommand cmd)
+{
+    QByteArray data;
+    data.append(100);
+    data.append(66);
+    data.append((char) cmd);
+    data.append((char) 0);
+    data.append((char) cmd);
+    data.append(101);
+    write(data);
+    waitForBytesWritten(100);
+    if(cmd == Start) deviceStatus = Busy;
+    else deviceStatus = Idle;
+    qDebug()<<cmd;
 }
 
 void ADA2Device::sendDignosticFrame()
@@ -125,9 +171,9 @@ void ADA2Device::sendDignosticFrame()
     data.append((char)0);
     data.append(101);
     write(data);
-    qDebug()<<"write";
+    //qDebug()<<"write";
     waitForBytesWritten(100);
-    qDebug()<<"wait";
+    //qDebug()<<"wait";
 }
 
 void ADA2Device::dataAvailable()
@@ -135,21 +181,19 @@ void ADA2Device::dataAvailable()
     static QByteArray buffer;
     buffer.append(readAll());
 
-    if(buffer.size() >= 56*40 && deviceStatus == Busy)
+    if(buffer.size() >= 56*20 && deviceStatus == Busy)
     {
-
         //searching for data frame
         while(buffer.at(0) != 100 || buffer.at(55) != 101 || buffer.at(1) != 89 || buffer.at(2) != 0)
         {
             buffer.remove(0,1);
-            if(buffer.size() < 56*40) return;
+            if(buffer.size() < 56*20) return;
         }
 
         QVector<double> samples;
 
-        for(int i = 0; i < 40; i++)
+        for(int i = 0; i < 20; i++)
         {
-            static int badcnt = 0;
             QByteArray frame = buffer.mid(0,56);
 
             // checking again (next frames can be invalid)
@@ -168,7 +212,7 @@ void ADA2Device::dataAvailable()
             quint16 controlSumInFrame = frame[53];
             controlSumInFrame <<= 8;
             controlSumInFrame &= 0xFF00;
-            controlSumInFrame |= ((quint8)frame[54] &0xFF);
+            controlSumInFrame |= ((quint8)frame[54]);
 
             if(controlSum != controlSumInFrame)
             {
@@ -178,10 +222,10 @@ void ADA2Device::dataAvailable()
             {
                 for(int b = 0; b < 50; b+=2)
                 {
-                    quint16 sample = frame[3+b];
+                    quint16 sample = (quint8)frame[3+b];
                     sample <<= 8;
                     sample &= 0xFF00;
-                    sample |= (frame[4+b] & 0xFF);
+                    sample |= (quint8)(frame[4+b]);
                     samples.append( (double)sample);
                 }
 
@@ -190,18 +234,17 @@ void ADA2Device::dataAvailable()
             buffer.remove(0,56);
         }
 
-        if(samples.size() == 1000)
+        if(samples.size() == 500)
         {
             emit newSampleData(samples);
-            static int uu = 0;
-            qDebug()<<"GOOD"<<uu++;
+            frameTimeoutCounter = 0;
         }
         else
         {
             qDebug()<<samples.count();
         }
     }
-    else if(buffer.size() >= 5)
+    else if(buffer.size() >= 5 && deviceStatus == Idle)
     {
         //searching for response frame
         while(buffer.at(0) != 100 || buffer.at(4) != 101 || (buffer.at(1) != 44 && buffer.at(1) != 55) || buffer.at(2) != 0 || buffer.at(3) != 0)

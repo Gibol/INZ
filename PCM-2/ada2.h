@@ -16,7 +16,7 @@
 
 /* CONFIGURATION FRAME - send configuraton parameters to the device
  * TYPE: CONFIG
- * DATA: 5 BYTES  (0 - FREQUENCY; 1 - COMPRESSION; 2 - WORDLENGTH; 3 - INPUT; 4 - OUTPUT )
+ * DATA: 6 BYTES  (0 - FREQUENCY; 1 - COMPRESSION; 2 - WORDLENGTH; 3 - INPUT; 4 - OUTPUT; 5 - BITERROR )
  * RESPONSE: YES
  * RESPONSE DATA: 0 BYTES
  */
@@ -46,16 +46,18 @@
 class ADA2Device : public QSerialPort
 {
     Q_OBJECT
+
 public:
     explicit ADA2Device(QObject *parent = 0);
-    typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05HZ, F32KHZ, F44_1KHZ}               SampligFrequency;
-    typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}    CompressionType;
-    typedef enum { Word8bits, Word12Bits}                                               WordLenght;
-    typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2, TestSignal3}   SignalSource;
-    typedef enum { AnalogOutput1, AnalogOutput2}                                        SignalOutput;
-
-    typedef enum { Connected, Disconnected, Waiting }                                            ConnectionStatus;
-    typedef enum { Idle, Busy }                                                         DeviceStatus;
+    typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
+    typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}                                CompressionType;
+    typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
+    typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
+    typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
+    typedef enum { Bit0, Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8, Bit9, Bit10, Bit11, BitRandom, BitNone }   BitError;
+    typedef enum { Connected, Disconnected, Waiting }                                                               ConnectionStatus;
+    typedef enum { Idle, Busy }                                                                                     DeviceStatus;
+    typedef enum { Start = 255, Stop = 0 }                                                                          StartStopCommand;
 
     typedef struct {
         SampligFrequency samplingFrequency;
@@ -63,15 +65,19 @@ public:
         CompressionType compressionType;
         SignalSource signalSource;
         SignalOutput signalOutput;
+        BitError bitError;
     } ADASettings;
 
+    static ADASettings initSettingsStructure();
 
 signals:
     void connectionStatusChanged(ConnectionStatus status);
+    void deviceStatusChanged(DeviceStatus status);
     void newSampleData(QVector<double>);
 
 public slots:
-
+    void newSettings(ADA2Device::ADASettings settings);
+    void sendStartStopCommand(ADA2Device::StartStopCommand cmd);
 
 protected:
     void timerEvent(QTimerEvent *event);
@@ -83,6 +89,7 @@ private:
     DeviceStatus deviceStatus;
     ConnectionStatus connectionStatus;
     ADASettings currentSettings;
+    int frameTimeoutCounter;
 
     void sendDignosticFrame();
     void sendConfigurationFrame();
