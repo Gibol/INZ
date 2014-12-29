@@ -53,10 +53,13 @@ extern uint32_t APP_Rx_ptr_in;    /* Increment this pointer or roll it back to
                                      start address when writing received data
                                      in the buffer APP_Rx_Buffer. */
 	
-#define  FRAME_SIZE  ((uint8_t)((64*3)+2))
-#define  START_BYTE	 ((uint8_t)('B'))
-#define  STOP_BYTE	 ((uint8_t)('E'))
-static uint8_t rxBuff[FRAME_SIZE];
+#define  CONFIG_FRAME_SIZE  	((uint8_t) 10)
+#define  DISCOVERY_FRAME_SIZE ((uint8_t) 5)
+#define  START_BYTE	 					((uint8_t) 100)
+#define  STOP_BYTE	 					((uint8_t) 101)
+#define  DISCOVERY_FRAME	 		((uint8_t) 44)
+#define  CONFIG_FRAME	 				((uint8_t) 55)
+static uint8_t rxBuff[CONFIG_FRAME_SIZE];
 static uint8_t currentIndex = 0;	
 
 /* Private function prototypes -----------------------------------------------*/
@@ -217,7 +220,7 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
   uint32_t i;
 	static int status = 0;
 	
-
+	if(Len > 10) return USBD_OK;
 	
 	if(currentIndex == 0 && Buf[0] != START_BYTE)
 	{
@@ -225,28 +228,36 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 		status = -1;
 		return USBD_OK;
 	}
-  
-	for(i = 0; i <= Len; i++)
-	{
-		rxBuff[currentIndex+i] = Buf[i];
 	
-		if(currentIndex+i == FRAME_SIZE-1)
-		{
-			if(rxBuff[FRAME_SIZE-1] == STOP_BYTE)
-			{
-				status = 1;
-				
-			}
-			else
-			{
-				status = -1;
-				
-			}
-			currentIndex = 0;
-			return USBD_OK;
-		}
+	if(Buf[0] == START_BYTE && Buf[1] == DISCOVERY_FRAME && Buf[2] == 0 && Buf[3] == 0 && Buf[4] == STOP_BYTE)
+	{
+		VCP_DataTx(Buf, 5);
+		return USBD_OK;
 	}
-	currentIndex+=Len;
+	
+	if(Buf[0] == START_BYTE && Buf[1] == CONFIG_FRAME && Buf[9] == STOP_BYTE)
+	{
+				uint16_t mod = 0, mod2 = 0;
+				for(i = 0; i < 5; i++)
+				{
+					mod += Buf[2 + i];
+				}
+				
+				mod2 = Buf[7] << 8;
+				mod2 |= Buf[8];
+				
+				if(mod == mod2)
+				{
+					Buf[2] = 0;
+					Buf[3] = 0;
+					Buf[4] = STOP_BYTE;
+					VCP_DataTx(Buf, 5);
+				}
+				
+				return USBD_OK;
+	}
+  
+
 	
 
 	

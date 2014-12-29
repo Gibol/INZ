@@ -7,12 +7,36 @@
 /* Includes ------------------------------------------------------------------*/ 
 #include "main.h"
 
+/* 1kHz Sine tables */
+uint16_t SIN_44K[44] = {
+	2048,2339,2624,2898,3154,3388,3595,3770,
+3910,4012,4074,4095,4074,4012,3910,3770,
+3595,3388,3154,2898,2624,2339,2048,1756,
+1471,1197,941,707,500,325,185,83,
+21,0,21,83,185,325,500,707,
+941,1197,1471,1756 };
+
+uint16_t SIN_32K[32] = {
+	2048,2447,2831,3185,3495,3750,3939,4056,
+4095,4056,3939,3750,3495,3185,2831,2447,
+2048,1648,1264,910,600,345,156,39,
+0,39,156,345,600,910,1264,1648};
+
+/* System variables */
 __IO uint16_t uhADCxConvertedValue[2] = {0};
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END ;
 
-static volatile uint8_t sampleBuffer[2000];
+/* Sample buffer for USB transmission */
+static volatile uint8_t sampleBuffer[SAMPLE_BUFFER_SIZE];
 static volatile uint16_t dataCounter = 0;
 
+/* Configuration variables initialisation */
+static SignalSource sigSource = TestSignal1;
+static SignalOutput sigOutput = AnalogOutput1;
+static SampligFrequency samFrequency = F44_1KHZ;
+static FrequencyGroup freqGroup = F_GROUP1;
+static DeviceStatus devStatus = Idle;
+static WordLenght wordLen = Word12Bits;
 
 int main(void)
 {
@@ -37,33 +61,34 @@ int main(void)
 	while (1)
   {
 	
-	if(dataCounter == 1000)
-	{
-		uint16_t mod;
-		int i,j;
-		uint8_t frame[56];
-		frame[0] = 100;
-		frame[1] = 89;
-		frame[55] = 101;
-		
-		for(j = 0; j < 2000/50; j++)
+		/* Send collected samples when ready, and configured */
+		if(dataCounter == SAMPLE_BUFFER_SIZE && devStatus == Busy)
 		{
-			frame[2] = j;
-			mod=0;
-			for(i = 0; i < 50; i++)
-			{
-				frame[i+3] = sampleBuffer[(50*j) + i];
-				mod += sampleBuffer[(50*j) + i];
-			}
+			uint16_t mod;
+			int i,j;
+			uint8_t frame[56];
+			frame[0] = 100;
+			frame[1] = 89;
+			frame[55] = 101;
 			
-			frame[54] = (uint8_t)(mod & 0xFF);
-			frame[53] = (uint8_t)(mod >> 8);
-				LED_Toggle(Yellow);
-			VCP_DataTx(frame, 56);
-				LED_Toggle(Yellow);
+			for(j = 0; j < SAMPLE_BUFFER_SIZE/50; j++)
+			{
+				frame[2] = j;
+				mod=0;
+				for(i = 0; i < 50; i++)
+				{
+					frame[i+3] = sampleBuffer[(50*j) + i];
+					mod += sampleBuffer[(50*j) + i];
+				}
+				
+				frame[54] = (uint8_t)(mod & 0xFF);
+				frame[53] = (uint8_t)(mod >> 8);
+					LED_Toggle(Yellow);
+				VCP_DataTx(frame, 56);
+					LED_Toggle(Yellow);
+			}
+			dataCounter = 0;
 		}
-		dataCounter = 0;
-	}
 	}
 } 
 
@@ -72,24 +97,6 @@ static void TIM_Init(void)
 {
 	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
 	NVIC_InitTypeDef NVIC_InitStructure;
-//  /* TIM7 clock enable */
-//  RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM7, ENABLE);
-//  /* Enable TIM7 Interrupt */
-//  NVIC_InitStructure.NVIC_IRQChannel = TIM7_IRQn;
-//  NVIC_InitStructure.NVIC_IRQChannelPreemptionPriority = 1;
-//  NVIC_InitStructure.NVIC_IRQChannelSubPriority = 0;
-//  NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
-//  NVIC_Init(&NVIC_InitStructure);
-//  /* Time base configuration */
-//  TIM_TimeBaseStructure.TIM_Prescaler =  42000 - 1;
-//  TIM_TimeBaseStructure.TIM_Period = 50 - 1;
-//  TIM_TimeBaseStructure.TIM_ClockDivision = 0;
-//  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
-//  TIM_TimeBaseInit(TIM7, &TIM_TimeBaseStructure);
-  /* TIM7 enable counter */
-  //TIM_Cmd(TIM7, ENABLE);
-  /* TIM7 enable update interrupt */
-  //TIM_ITConfig(TIM7, TIM_IT_Update, ENABLE);	
 	
   /* TIM6 clock enable */
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM6, ENABLE);
@@ -100,7 +107,25 @@ static void TIM_Init(void)
   NVIC_InitStructure.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&NVIC_InitStructure);
   /* Time base configuration */
-  TIM_TimeBaseStructure.TIM_Prescaler =  N_44_1KHZ - 1;
+  TIM_TimeBaseStructure.TIM_Prescaler =  N_DEFAULT - 1;
+  TIM_TimeBaseStructure.TIM_Period = 1;
+  TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
+  TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
+  TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
+  /* TIM6 enable counter */
+  TIM_Cmd(TIM6, ENABLE); 
+  /* TIM6 enable update interrupt */
+  TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
+}
+
+void TIM_ChangeN(int N)
+{
+	TIM_TimeBaseInitTypeDef  TIM_TimeBaseStructure;
+	
+	TIM_ITConfig(TIM6, TIM_IT_Update, DISABLE);
+	TIM_Cmd(TIM6, DISABLE); 
+	
+	TIM_TimeBaseStructure.TIM_Prescaler =  N - 1;
   TIM_TimeBaseStructure.TIM_Period = 1;
   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
@@ -110,27 +135,85 @@ static void TIM_Init(void)
   /* TIM6 enable update interrupt */
   TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
 	
-	
-	
 }
 
-void TIM7_IRQHandler(void)
-{
-
-	TIM_ClearITPendingBit(TIM7,TIM_IT_Update);
-}
 
 void TIM6_DAC_IRQHandler(void)
 {	
-	uint16_t val1 = uhADCxConvertedValue[0], val2 = uhADCxConvertedValue[1];
-  DAC_SetDualChannelData(DAC_Align_12b_R, val2, val1);
-	if(dataCounter < 1000)
+	uint16_t val;
+  static uint8_t waveGenCnt = 0;
+	
+	if(sigSource == AnalogInput1)
 	{
-		sampleBuffer[dataCounter] = (uint8_t) val1;
-		sampleBuffer[dataCounter] = (uint8_t)(val1 >> 8);
-		sampleBuffer[1000+dataCounter] = (uint8_t)val2 ;
-		sampleBuffer[1000+dataCounter] = (uint8_t)(val2 >> 8);
-		dataCounter+=2;
+		val = uhADCxConvertedValue[0];
+	}
+	else if(sigSource == AnalogInput2)
+	{
+		val = uhADCxConvertedValue[1];
+	}
+	else if(sigSource == TestSignal1)
+	{
+		
+		if(freqGroup == F_GROUP1)
+		{
+			val = SIN_44K[waveGenCnt];
+			if(samFrequency == F44_1KHZ)
+			{
+				
+				waveGenCnt++;	
+			}
+			else if(samFrequency == F22_05KHZ)
+			{
+				
+				waveGenCnt+=2;
+			}
+			else if(samFrequency == F11_025KHZ)
+			{
+				
+				waveGenCnt+=4;
+			}
+		
+		if(waveGenCnt >= 44) waveGenCnt = 0;
+		}
+		else if(freqGroup == F_GROUP2)
+		{
+			val = SIN_32K[waveGenCnt];
+			if(samFrequency == F32KHZ)
+			{
+				
+				waveGenCnt++;	
+			}
+			else if(samFrequency == F16KHZ)
+			{
+				
+				waveGenCnt+=2;
+			}
+			else if(samFrequency == F8KHZ)
+			{
+				
+				waveGenCnt+=4;
+			}
+			if(waveGenCnt >= 32) waveGenCnt = 0;
+		}
+		
+		
+		
+	}
+	
+  if(sigOutput == AnalogOutput1)
+	{
+		DAC_SetChannel1Data(DAC_Align_12b_R, val);
+	}
+	else if(sigOutput == AnalogOutput2)
+	{
+		DAC_SetChannel2Data(DAC_Align_12b_R, val);
+	}
+	
+	if(dataCounter < SAMPLE_BUFFER_SIZE)
+	{
+		sampleBuffer[dataCounter+1] = (uint8_t) val ;
+		sampleBuffer[dataCounter] = ((uint8_t)(val >> 8)&0xFF) ;
+		dataCounter++;
 	}		
 	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
 }
@@ -140,13 +223,14 @@ static void DAC_Config(void)
 	GPIO_InitTypeDef      GPIO_InitStructure;
 	DAC_InitTypeDef  DAC_InitStructure;
 	
+	/* Enable DAC Clock */
 	RCC_APB1PeriphClockCmd(RCC_APB1Periph_DAC, ENABLE);
 	 
+	/* GPIO Configuration */
 	GPIO_InitStructure.GPIO_Pin = DAC1_GPIO_PIN | DAC2_GPIO_PIN;
   GPIO_InitStructure.GPIO_Mode = GPIO_Mode_AN;
   GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
-  GPIO_Init(ANALOG_GPIO_PORT , &GPIO_InitStructure);
-	
+  GPIO_Init(ANALOG_GPIO_PORT , &GPIO_InitStructure);	
 	
 	/* DAC Configuration */
   DAC_InitStructure.DAC_Trigger = DAC_Trigger_None;
@@ -227,7 +311,6 @@ static void ADC_Config(void)
   /* Enable ADC DMA */
   ADC_DMACmd(ADC1, ENABLE);
 	
-
   /* Enable ADC */
   ADC_Cmd(ADC1, ENABLE);
 	ADC_Cmd(ADC2, ENABLE);

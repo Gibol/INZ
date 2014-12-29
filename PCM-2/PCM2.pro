@@ -15,10 +15,13 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainwindow.cpp \
     qcustomplot.cpp \
-    ada2.cpp
+    ada2.cpp \
+    configwidget.cpp
 
 HEADERS  += mainwindow.h \
     qcustomplot.h \
-    ada2.h
+    ada2.h \
+    configwidget.h
 
-FORMS    += mainwindow.ui
+FORMS    += mainwindow.ui \
+    configwidget.ui

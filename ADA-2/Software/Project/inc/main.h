@@ -8,6 +8,19 @@
 #include "usbd_cdc_vcp.h"
 #include <stdio.h>
 
+
+/* CONFIG SECTION */
+typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2, TestSignal3}   																SignalSource;
+typedef enum { AnalogOutput1, AnalogOutput2}                                        																SignalOutput;
+typedef enum { F8KHZ = 5250, F11_025KHZ = 3809, F16KHZ = 2652, F22_05KHZ = 1904, F32KHZ = 1312, F44_1KHZ = 952}     SampligFrequency;
+typedef enum { F_GROUP1, F_GROUP2}      																																						FrequencyGroup;
+typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}    																CompressionType;
+typedef enum { Word8bits, Word12Bits}                                               																WordLenght;
+typedef enum { Idle, Busy }       																																									DeviceStatus;
+#define SAMPLE_BUFFER_SIZE 1000 //must devide by 50
+
+/* EO CONFIG SECTION */
+
 /* LED SECTION */
 #define LED_GPIO 				GPIOD
 #define LED_GREEN_Pin		GPIO_Pin_12
@@ -45,25 +58,15 @@ static void DAC_Config(void);
 static void ADC_Config(void);
 /* EO ADC SECTION */
 
-/* DAC SECTION */
-
-
-
-/* EO DAC SECTION */
 
 /* TIMER SECTION */
-#define N_44_1KHZ 952
-#define N_32KHZ 1312
-#define N_22_05KHZ 1904
-#define N_16KHZ 2625
-#define N_11_025KHZ 3809
-#define N_8KHZ 5250
-#define N_DEFAULT N_22_05KHZ
+#define N_DEFAULT F44_1KHZ
 static void TIM_Init(void);
 static void TIM_ChangeN(int N);
-void TIM7_IRQHandler(void);
 void TIM6_DAC_IRQHandler(void);
 /* EO TIMER SECTION */
+
+
 
 
 // Function prototypes
