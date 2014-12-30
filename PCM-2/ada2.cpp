@@ -74,7 +74,6 @@ void ADA2Device::timerEvent(QTimerEvent *event)
     }
     else if(deviceStatus == Idle)
     {
-        //qDebug()<<"idle";
         static int waitingCount = 0;
         // if device is idle check if its responding
         sendDignosticFrame();
@@ -159,7 +158,6 @@ void ADA2Device::sendStartStopCommand(ADA2Device::StartStopCommand cmd)
     waitForBytesWritten(100);
     if(cmd == Start) deviceStatus = Busy;
     else deviceStatus = Idle;
-    qDebug()<<cmd;
 }
 
 void ADA2Device::sendDignosticFrame()
@@ -171,9 +169,7 @@ void ADA2Device::sendDignosticFrame()
     data.append((char)0);
     data.append(101);
     write(data);
-    //qDebug()<<"write";
     waitForBytesWritten(100);
-    //qDebug()<<"wait";
 }
 
 void ADA2Device::dataAvailable()
@@ -181,18 +177,19 @@ void ADA2Device::dataAvailable()
     static QByteArray buffer;
     buffer.append(readAll());
 
-    if(buffer.size() >= 56*20 && deviceStatus == Busy)
+    if(buffer.size() >= 56*((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50 && deviceStatus == Busy)
     {
+        qDebug()<<buffer.toHex()<<buffer.size();
         //searching for data frame
         while(buffer.at(0) != 100 || buffer.at(55) != 101 || buffer.at(1) != 89 || buffer.at(2) != 0)
         {
             buffer.remove(0,1);
-            if(buffer.size() < 56*20) return;
+            if(buffer.size() < 56*((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50) return;
         }
 
         QVector<double> samples;
 
-        for(int i = 0; i < 20; i++)
+        for(int i = 0; i < ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50; i++)
         {
             QByteArray frame = buffer.mid(0,56);
 
@@ -201,7 +198,6 @@ void ADA2Device::dataAvailable()
             {
                 return;
             }
-
 
             //now check for other transmission erros by checking control sum;
             quint16 controlSum = 0;
@@ -220,13 +216,23 @@ void ADA2Device::dataAvailable()
             }
             else
             {
-                for(int b = 0; b < 50; b+=2)
+                for(int b = 0; b < 50; b++)
                 {
-                    quint16 sample = (quint8)frame[3+b];
-                    sample <<= 8;
-                    sample &= 0xFF00;
-                    sample |= (quint8)(frame[4+b]);
-                    samples.append( (double)sample);
+
+                    if(currentSettings.wordLenght == Word12Bits)
+                    {
+                        quint16 sample = (quint8)frame[3+b];
+                        sample <<= 8;
+                        sample &= 0xFF00;
+                        sample |= (quint8)(frame[4+b]);
+                        b++;
+                        samples.append( (double)((qint16)sample));
+                    }
+                    else
+                    {
+                        samples.append( (double)((qint8)frame[3+b]));
+                    }
+
                 }
 
             }
@@ -234,7 +240,7 @@ void ADA2Device::dataAvailable()
             buffer.remove(0,56);
         }
 
-        if(samples.size() == 500)
+        if(samples.size() == SAMPLE_BUFFER_SIZE/2)
         {
             emit newSampleData(samples);
             frameTimeoutCounter = 0;

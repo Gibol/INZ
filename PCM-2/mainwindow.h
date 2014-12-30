@@ -22,6 +22,10 @@ private slots:
     void newSampleData(QVector<double> data);
     void startStopConv();
 
+    void on_doubleSpinBoxLevel_valueChanged(double arg1);
+
+    void on_doubleSpinBoxPrecision_valueChanged(double arg1);
+
 signals:
     void startStopConversionRequest(ADA2Device::StartStopCommand);
 
@@ -31,6 +35,7 @@ private:
     ConfigWidget configWidget;
     QVector<double> tick;
     QThread communicationsThread;
+    quint16 findTriggerPoint(QVector<double> const &data, double triggerLevel, double triggerPrecision, bool risingFalling);
 };
 
 #endif // MAINWINDOW_H

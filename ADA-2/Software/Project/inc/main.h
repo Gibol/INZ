@@ -53,7 +53,6 @@ void USB_Debug(uint8_t text[], uint8_t len);
 /* EO USB DEBUG SECTION */
 
 /* ANALOG SECTION */
-
 #define ADC1_CHANNEL            ADC_Channel_7
 #define ADC2_CHANNEL 						ADC_Channel_6
 #define ADC1_CLK                RCC_APB2Periph_ADC1
@@ -68,10 +67,12 @@ void USB_Debug(uint8_t text[], uint8_t len);
 #define DAC1_GPIO_PIN GPIO_Pin_5
 #define DAC2_GPIO_PIN GPIO_Pin_4
 #define DAC_CLK RCC_APB1Periph_DAC
-
+#define OFFSET_12b_2 ((int16_t)6)
+#define OFFSET_12b_1 ((int16_t)0)
 static void DAC_Config(void);
 static void ADC_Config(void);
-/* EO ADC SECTION */
+static void ADC_ChangeWordLen(WordLenght wl);
+/* EO ANALOG SECTION */
 
 
 /* TIMER SECTION */
@@ -81,6 +82,10 @@ static void TIM_ChangeN(int N);
 void TIM6_DAC_IRQHandler(void);
 /* EO TIMER SECTION */
 
+/* SIGNAL PROCESSING SECTION */
+void compressSample(int16_t *sample);
+int16_t getTestSignalSample(void);
+/* EO SIGNAL PROCESSING SECTION */
 
 // Function prototypes
 void get_dec_str (uint8_t* str, uint8_t len, uint32_t val);

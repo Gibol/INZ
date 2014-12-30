@@ -56,6 +56,7 @@ extern uint32_t APP_Rx_ptr_in;    /* Increment this pointer or roll it back to
 extern ADASettings currentSettings;
 extern uint8_t configurationChangedFlag;	
 extern DeviceStatus devStatus;
+extern uint8_t deviceConfiguredFlag;
 	
 #define  CONFIG_FRAME_SIZE  		((uint8_t) 11)
 #define  DISCOVERY_FRAME_SIZE 	((uint8_t) 5)
@@ -253,7 +254,7 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 				devStatus = Idle;
 				TIM_Cmd(TIM6, DISABLE); 
 			}
-			else if(Buf[2] == Start) 
+			else if(Buf[2] == Start && deviceConfiguredFlag == 1) 
 			{
 				devStatus = Busy;
 				TIM_Cmd(TIM6, ENABLE); 

@@ -36,7 +36,7 @@
 #define ADA2_H
 
 #define TIMER_UPDATE_INTERVAL 1000
-#define SAMPLES_BUFFER_SIZE 1000
+#define SAMPLE_BUFFER_SIZE 1000
 
 #include <QSerialPort>
 #include <QSerialPortInfo>
