@@ -70,14 +70,7 @@ int main(void)
 		if(configurationChangedFlag == 1)
 		{
 			TIM_ChangeN( N_TABLE[currentSettings.samplingFrequency] );
-//			if(currentSettings.wordLenght == Word8bits && currentSettings.compressionType == CompressionNone)
-//			{
-//				ADC_ChangeWordLen(Word8bits);
-//			}
-//			else
-//			{
-//			  ADC_ChangeWordLen(Word12Bits);
-//			}
+
 			if( currentSettings.samplingFrequency == F8KHZ ||  currentSettings.samplingFrequency == F16KHZ || currentSettings.samplingFrequency == F32KHZ)
 			{
 				freqGroup = F_GROUP2;
@@ -150,8 +143,7 @@ static void TIM_Init(void)
   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
   TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
-  /* TIM6 enable counter */
-  //TIM_Cmd(TIM6, ENABLE); 
+
   /* TIM6 enable update interrupt */
   TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
 }
@@ -168,8 +160,7 @@ void TIM_ChangeN(int N)
   TIM_TimeBaseStructure.TIM_ClockDivision = TIM_CKD_DIV1;
   TIM_TimeBaseStructure.TIM_CounterMode = TIM_CounterMode_Up;
   TIM_TimeBaseInit(TIM6, &TIM_TimeBaseStructure);
-  /* TIM6 enable counter */
-  //TIM_Cmd(TIM6, ENABLE); 
+	
   /* TIM6 enable update interrupt */
   TIM_ITConfig(TIM6, TIM_IT_Update, ENABLE);
 	
@@ -199,25 +190,25 @@ void TIM6_DAC_IRQHandler(void)
 			
 	if(currentSettings.wordLenght == Word8bits && currentSettings.compressionType == CompressionNone)
 	{
-			
-			sample = (value/16) - 128;
+			sample = (value >> 16);
+	}
+	else if(currentSettings.compressionType != CompressionNone)
+	{
+		/* convert from 12-bit unsigned to signed 16-bit integer to match compander input requerements (this is a losless operation) */
+		value <<= 4; 
+		sample = value - 32767;
+		/* Do sample compression */
+		compressSample(&sample); //output range [0-255]
 	}
 	else
 	{
-		sample = value - 2048;
-		/* Do sample compression */
-		compressSample(&sample);
+		sample = value;
 	}
 	
-	/* Output the sample */
-  if(currentSettings.signalOutput == AnalogOutput1)
-	{
-		DAC_SetChannel1Data((currentSettings.wordLenght == Word12Bits) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
-	}
-	else if(currentSettings.signalOutput == AnalogOutput2)
-	{
-		DAC_SetChannel2Data((currentSettings.wordLenght == Word12Bits) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
-	}
+	/* Simulate transmission error */
+	simulateError(&sample);	
+	
+	// from this point we have data that is ready for transmission (0-255 or 0-4095)
 	
 	/* save sample in buffer for usb transmission */
 	if(dataCounter < ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2)) )
@@ -234,6 +225,27 @@ void TIM6_DAC_IRQHandler(void)
 			dataCounter++;
 		}
 	}
+	
+	if(currentSettings.compressionType != CompressionNone)
+	{
+		/* Decompress sample */
+		void decompressSample(int16_t *sample);
+		/* Convert back to 12b unsigned format */
+		value = sample +  32767;
+		value >>= 4;
+		
+		sample = value;
+	}
+	
+	/* Output the sample */
+  if(currentSettings.signalOutput == AnalogOutput1)
+	{
+		DAC_SetChannel1Data((currentSettings.wordLenght == Word12Bits || currentSettings.compressionType != CompressionNone) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+	}
+	else if(currentSettings.signalOutput == AnalogOutput2)
+	{
+		DAC_SetChannel2Data((currentSettings.wordLenght == Word12Bits || currentSettings.compressionType != CompressionNone) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+	}
 
 	/* clear interrupt flag */
 	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
@@ -241,11 +253,56 @@ void TIM6_DAC_IRQHandler(void)
 
 void compressSample(int16_t *sample)
 {
-	if(currentSettings.wordLenght == Word12Bits) return;
-	else
+	switch((int)currentSettings.compressionType)
 	{
+		case (int)CompressionMu:
+			*sample = linear2ulaw(*sample);
+			return;
 		
+		case (int)CompressionA:
+			*sample = linear2alaw(*sample);
+			return;
+		
+		default: 
+			return;
 	}
+}
+
+void decompressSample(int16_t *sample)
+{
+		switch((int)currentSettings.compressionType)
+	{
+		case (int)CompressionMu:
+			*sample = ulaw2linear( ((unsigned char)*sample));
+			return;
+		
+		case (int)CompressionA:
+			*sample = alaw2linear( ((unsigned char)*sample));
+			return;
+		
+		default: 
+			return;
+	}
+}
+void simulateError(int16_t *sample)
+{
+	if(currentSettings.bitError == BitNone)
+	{
+		return;
+	}
+	
+	if(((int)currentSettings.bitError) < ((int)Bit11))
+	{
+		(*sample) ^= (1<<(int)currentSettings.bitError);
+	}
+	else // if( currentSettings.bitError == BitRandom)
+	{
+		(*sample) ^= ( 1 << ((ADCConvertedValue16b[0]+ADCConvertedValue16b[1])%12) );
+	}
+	
+	
+		
+	
 }
 
 int16_t getTestSignalSample(void)

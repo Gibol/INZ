@@ -7,6 +7,7 @@ ConfigWidget::ConfigWidget(QWidget *parent) :
 {
     ui->setupUi(this);
     currentSettings = ADA2Device::initSettingsStructure();
+    setWindowTitle("ADA-2 Device Configuration");
 }
 
 ConfigWidget::~ConfigWidget()

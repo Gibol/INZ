@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DidacticsWidget</class>
+ <widget class="QWidget" name="DidacticsWidget">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>480</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Form</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>A-law and u-Law companding</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>2</number>
+     </property>
+     <widget class="QWidget" name="Equations">
+      <attribute name="title">
+       <string>Equations</string>
+      </attribute>
+     </widget>
+     <widget class="QWidget" name="Graphs">
+      <attribute name="title">
+       <string>Graphs</string>
+      </attribute>
+     </widget>
+     <widget class="QWidget" name="IOComp">
+      <attribute name="title">
+       <string>Input / output comparation</string>
+      </attribute>
+     </widget>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

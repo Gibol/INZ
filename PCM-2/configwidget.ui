@@ -25,12 +25,12 @@
     <widget class="QComboBox" name="comboBoxOutput">
      <item>
       <property name="text">
-       <string>Wyjście analogowe 1</string>
+       <string>Analog output 1</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Wyjście analogowe 2</string>
+       <string>Analog output 2</string>
       </property>
      </item>
     </widget>
@@ -75,14 +75,14 @@
    <item row="2" column="1">
     <widget class="QLabel" name="label_4">
      <property name="text">
-      <string>Częstotliwość próbkowania:</string>
+      <string>Sampling frequency:</string>
      </property>
     </widget>
    </item>
    <item row="4" column="0">
     <widget class="QLabel" name="label_3">
      <property name="text">
-      <string>Rodzaj kompresji:</string>
+      <string>Compression:</string>
      </property>
     </widget>
    </item>
@@ -90,12 +90,12 @@
     <widget class="QComboBox" name="comboBoxCompression">
      <item>
       <property name="text">
-       <string>Brak</string>
+       <string>None</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>A-law</string>
+       <string>A-Law</string>
       </property>
      </item>
      <item>
@@ -103,17 +103,12 @@
        <string>µ-Law</string>
       </property>
      </item>
-     <item>
-      <property name="text">
-       <string>Cyfrowa</string>
-      </property>
-     </item>
     </widget>
    </item>
    <item row="0" column="0">
     <widget class="QLabel" name="label">
      <property name="text">
-      <string>Źródło sygnału:</string>
+      <string>Signal source:</string>
      </property>
     </widget>
    </item>
@@ -121,22 +116,22 @@
     <widget class="QComboBox" name="comboBoxSource">
      <item>
       <property name="text">
-       <string>Wejście analogowe 1</string>
+       <string>Analog input 1</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Wejście analogowe 2</string>
+       <string>Analog input 2</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Sygnał testowy 1</string>
+       <string>Test signal 1</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Sygnał testowy 2</string>
+       <string>Test signal 2</string>
       </property>
      </item>
     </widget>
@@ -144,7 +139,7 @@
    <item row="0" column="1">
     <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>Długość słowa kodowego:</string>
+      <string>Word length:</string>
      </property>
     </widget>
    </item>
@@ -155,12 +150,12 @@
      </property>
      <item>
       <property name="text">
-       <string>8 bitów</string>
+       <string>8 bits</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>12 bitów</string>
+       <string>12 bits</string>
       </property>
      </item>
     </widget>
@@ -168,7 +163,7 @@
    <item row="4" column="1">
     <widget class="QLabel" name="label_5">
      <property name="text">
-      <string>Symulacja błędu transmisji:</string>
+      <string>Transmission error simulation:</string>
      </property>
     </widget>
    </item>
@@ -179,72 +174,72 @@
      </property>
      <item>
       <property name="text">
-       <string>Negacja bitu 0</string>
+       <string>Bit 0 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 1</string>
+       <string>Bit 1 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 2</string>
+       <string>Bit 2 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 3</string>
+       <string>Bit 3 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 4</string>
+       <string>Bit 4 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 5</string>
+       <string>Bit 5 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 6</string>
+       <string>Bit 6 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 7</string>
+       <string>Bit 7 negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 8 (tylko tryb 12b bez kompresji)</string>
+       <string>Bit 8 negation (12b mode with no compression)</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 9  (tylko tryb 12b bez kompresji)</string>
+       <string>Bit 9 negation (12b mode with no compression)</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 10  (tylko tryb 12b bez kompresji)</string>
+       <string>Bit 10 negation (12b mode with no compression)</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja bitu 11  (tylko tryb 12b bez kompresji)</string>
+       <string>Bit 11 negation (12b mode with no compression)</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Negacja losowego bitu</string>
+       <string>Random bit negation</string>
       </property>
      </item>
      <item>
       <property name="text">
-       <string>Brak</string>
+       <string>None</string>
       </property>
      </item>
     </widget>
@@ -252,14 +247,14 @@
    <item row="7" column="0" colspan="2">
     <widget class="QPushButton" name="pushButton">
      <property name="text">
-      <string>Wyślij</string>
+      <string>Send configuration to the device</string>
      </property>
     </widget>
    </item>
    <item row="2" column="0">
     <widget class="QLabel" name="label_6">
      <property name="text">
-      <string>Wyjście:</string>
+      <string>Output:</string>
      </property>
     </widget>
    </item>

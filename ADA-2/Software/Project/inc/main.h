@@ -6,6 +6,7 @@
 #include "usb_conf.h"
 #include "usbd_desc.h"
 #include "usbd_cdc_vcp.h"
+#include "g711.h"
 #include <stdio.h>
 
 
@@ -84,7 +85,9 @@ void TIM6_DAC_IRQHandler(void);
 
 /* SIGNAL PROCESSING SECTION */
 void compressSample(int16_t *sample);
+void decompressSample(int16_t *sample);
 int16_t getTestSignalSample(void);
+void simulateError(int16_t *sample);
 /* EO SIGNAL PROCESSING SECTION */
 
 // Function prototypes

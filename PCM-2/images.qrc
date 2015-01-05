@@ -1,0 +1,9 @@
+<RCC>
+    <qresource prefix="/">
+        <file alias="play">img/Play.png</file>
+        <file alias="save">img/Save.png</file>
+        <file alias="stop">img/Stop.png</file>
+        <file alias="settings">img/Wrench.png</file>
+        <file alias="icon">img/logo.png</file>
+    </qresource>
+</RCC>

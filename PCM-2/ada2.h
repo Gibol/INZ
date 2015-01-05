@@ -42,6 +42,7 @@
 #include <QSerialPortInfo>
 #include <QTimerEvent>
 #include <QDebug>
+#include "g711.h"
 
 class ADA2Device : public QSerialPort
 {
@@ -50,13 +51,13 @@ class ADA2Device : public QSerialPort
 public:
     explicit ADA2Device(QObject *parent = 0);
     typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
-    typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}                                CompressionType;
+    typedef enum { CompressionNone, CompressionA, CompressionMu }                                                   CompressionType;
     typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
     typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
     typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
     typedef enum { Bit0, Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8, Bit9, Bit10, Bit11, BitRandom, BitNone }   BitError;
     typedef enum { Connected, Disconnected, Waiting }                                                               ConnectionStatus;
-    typedef enum { Idle, Busy }                                                                                     DeviceStatus;
+    typedef enum { Idle, Busy, Configured }                                                                         DeviceStatus;
     typedef enum { Start = 255, Stop = 0 }                                                                          StartStopCommand;
 
     typedef struct {
@@ -70,10 +71,15 @@ public:
 
     static ADASettings initSettingsStructure();
 
+    ADA2Device::DeviceStatus getDeviceStatus() { return deviceStatus;}
+    ADA2Device::ConnectionStatus getConnectionStatus() {return connectionStatus;}
+
 signals:
-    void connectionStatusChanged(ConnectionStatus status);
-    void deviceStatusChanged(DeviceStatus status);
+    void connectionStatusChanged(ADA2Device::ConnectionStatus status);
+    void deviceStatusChanged(ADA2Device::DeviceStatus status);
     void newSampleData(QVector<double>);
+    void message(QString);
+    void configurationAccepted();
 
 public slots:
     void newSettings(ADA2Device::ADASettings settings);
@@ -90,7 +96,7 @@ private:
     ConnectionStatus connectionStatus;
     ADASettings currentSettings;
     int frameTimeoutCounter;
-
+    QByteArray buffer;
     void sendDignosticFrame();
     void sendConfigurationFrame();
 

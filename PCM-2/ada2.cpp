@@ -44,7 +44,8 @@ void ADA2Device::timerEvent(QTimerEvent *event)
 
     if(connectionStatus == Disconnected)
     {
-        qDebug()<<"Poszukiwanie urządzenia...";
+        //qDebug()<<"Poszukiwanie urządzenia...";
+        emit message("Searching for device...");
         reset();
         _flushall();
         foreach(QSerialPortInfo i, availablePorts)
@@ -52,27 +53,31 @@ void ADA2Device::timerEvent(QTimerEvent *event)
             if(i.productIdentifier() == 22336 && i.vendorIdentifier() == 1155)
             {
                 qDebug()<<"Znaleziono urządzenie ADA-2, otwieranie połączenia na"<<i.description();
+                emit message("Found ADA-2 device, opening connection on "+i.description());
                 setPort(i);
                 if(open(QIODevice::ReadWrite))
                 {
                     qDebug()<<"port otwarty";
+                    emit message("Port Opened.");
                     if(setPortSettings())
                     {
-                        qDebug()<<"Ustawienie parametrow transmisji powiodło się.";
+                        qDebug()<<"Connection parameters set correctly.";
+                        emit message("Connection parameters set correctly.");
                         sendDignosticFrame();
                         connectionStatus = Waiting;
                     }
                 }
                 else
                 {
-                    qDebug()<<"błąd otwarcia portu";
+                    //qDebug()<<"błąd otwarcia portu";
+                    emit message("Error opening port");
                     close();
                 }
             }
 
         }
     }
-    else if(deviceStatus == Idle)
+    else if(deviceStatus == Idle || deviceStatus == Configured)
     {
         static int waitingCount = 0;
         // if device is idle check if its responding
@@ -84,12 +89,13 @@ void ADA2Device::timerEvent(QTimerEvent *event)
         }
         else
         {
-            qDebug()<<"device not responding";
+            //qDebug()<<"device not responding";
             connectionStatus = Waiting;
             waitingCount++;
             if(waitingCount >= 10)
             {
                 connectionStatus = Disconnected;
+                deviceStatus = Idle;
             }
         }
     }
@@ -102,6 +108,9 @@ void ADA2Device::timerEvent(QTimerEvent *event)
             frameTimeoutCounter = 0;
         }
     }
+
+    emit deviceStatusChanged(deviceStatus);
+    emit connectionStatusChanged(connectionStatus);
 
 }
 
@@ -119,6 +128,8 @@ bool ADA2Device::setPortSettings()
 
 void ADA2Device::sendConfigurationFrame()
 {
+    buffer.clear();
+
     QByteArray data;
     quint16 mod = 0;
     data.append(100);
@@ -141,12 +152,15 @@ void ADA2Device::sendConfigurationFrame()
     data.append(modArray);
     data.append(101);
     write(data);
-    qDebug()<<"write config";
+    deviceStatus = Idle;
+    //qDebug()<<"write config";
     waitForBytesWritten(100);
 }
 
 void ADA2Device::sendStartStopCommand(ADA2Device::StartStopCommand cmd)
 {
+    buffer.clear();
+
     QByteArray data;
     data.append(100);
     data.append(66);
@@ -156,8 +170,17 @@ void ADA2Device::sendStartStopCommand(ADA2Device::StartStopCommand cmd)
     data.append(101);
     write(data);
     waitForBytesWritten(100);
-    if(cmd == Start) deviceStatus = Busy;
-    else deviceStatus = Idle;
+
+    if(cmd == Start)
+    {
+        deviceStatus = Busy;
+    }
+    else
+    {
+        deviceStatus = Configured;
+    }
+
+
 }
 
 void ADA2Device::sendDignosticFrame()
@@ -174,12 +197,12 @@ void ADA2Device::sendDignosticFrame()
 
 void ADA2Device::dataAvailable()
 {
-    static QByteArray buffer;
+
     buffer.append(readAll());
 
     if(buffer.size() >= 56*((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50 && deviceStatus == Busy)
     {
-        qDebug()<<buffer.toHex()<<buffer.size();
+        //qDebug()<<buffer.toHex()<<buffer.size();
         //searching for data frame
         while(buffer.at(0) != 100 || buffer.at(55) != 101 || buffer.at(1) != 89 || buffer.at(2) != 0)
         {
@@ -226,11 +249,19 @@ void ADA2Device::dataAvailable()
                         sample &= 0xFF00;
                         sample |= (quint8)(frame[4+b]);
                         b++;
-                        samples.append( (double)((qint16)sample));
+                        samples.append( (double)((qint16)sample)-2048);
                     }
-                    else
+                    else if(currentSettings.compressionType == CompressionNone)
                     {
-                        samples.append( (double)((qint8)frame[3+b]));
+                        samples.append( (double)((quint8)frame[3+b])-128);
+                    }
+                    else if(currentSettings.compressionType == CompressionMu)
+                    {
+                        samples.append( (double)(( ulaw2linear(((quint8)frame[3+b]))/16)));
+                    }
+                    else if(currentSettings.compressionType == CompressionA)
+                    {
+                        samples.append( (double)(( alaw2linear(((quint8)frame[3+b]))/16)));
                     }
 
                 }
@@ -247,10 +278,10 @@ void ADA2Device::dataAvailable()
         }
         else
         {
-            qDebug()<<samples.count();
+            //qDebug()<<samples.count();
         }
     }
-    else if(buffer.size() >= 5 && deviceStatus == Idle)
+    else if(buffer.size() >= 5 && (deviceStatus == Idle || deviceStatus == Configured) )
     {
         //searching for response frame
         while(buffer.at(0) != 100 || buffer.at(4) != 101 || (buffer.at(1) != 44 && buffer.at(1) != 55) || buffer.at(2) != 0 || buffer.at(3) != 0)
@@ -262,14 +293,15 @@ void ADA2Device::dataAvailable()
         if(buffer.at(1) == 44)
         {
             // response to discivery frame
-            qDebug()<<"resp disco";
+            //qDebug()<<"resp disco";
             connectionStatus = Connected;
             diagnosticResponseRecieved = true;
         }
         else if(buffer.at(1) == 55)
         {
             // response to config frame
-            qDebug()<<"resp config";
+            //qDebug()<<"resp config";
+            deviceStatus = Configured;
         }
         buffer.clear();
     }
@@ -280,9 +312,11 @@ void ADA2Device::handleError(QSerialPort::SerialPortError error)
 {
     if(error == QSerialPort::DeviceNotFoundError)
     {
-        qDebug()<<errorString()<<error;
+        //qDebug()<<errorString()<<error;
         close();
         connectionStatus = Disconnected;
+        deviceStatus = Idle;
+        emit message("Connection error.");
     }
 
 }
