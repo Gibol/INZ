@@ -56,6 +56,7 @@ private slots:
     void newConfig(ADA2Device::ADASettings settings);
     void showAbout();
     void showDidactics();
+    void updateMarkers();
 
 signals:
     void startStopConversionRequest(ADA2Device::StartStopCommand);
@@ -83,7 +84,7 @@ private:
     AboutWidget aboutWidget;
     QVector<double> tick;
     QThread communicationsThread;
-    quint16 findTriggerPoint(QVector<double> const &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling);
+    qint16 findTriggerPoint(QVector<double> const &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling);
     QQueue<QString> userMessages;
     QPair<double,double> maxRange;
     ADA2Device::ADASettings currentDevSettings;

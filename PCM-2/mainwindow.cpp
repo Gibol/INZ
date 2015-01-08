@@ -8,8 +8,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     setWindowTitle("PCM-2 v1.0");
     setWindowIcon(QIcon(":/icon"));
-
-
+    
+    
     /*Setup toolbar */
     saveGraphButton = new QToolButton(ui->mainToolBar);
     saveDataButton = new QToolButton(ui->mainToolBar);
@@ -36,28 +36,28 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addWidget(playButton);
     ui->mainToolBar->addWidget(stopButton);
     ui->mainToolBar->addSeparator();
-
+    
     statusIndicator = new StatusIndicator(ui->mainToolBar);
     statusIndicator->setTitle("Status");
     ui->mainToolBar->addWidget(statusIndicator);
     statusIndicator->setDiode(StatusIndicator::Red, true);
     statusIndicator->setDescription("Unconfigured");
-
+    
     connectionIndicator = new StatusIndicator(ui->mainToolBar);
     connectionIndicator->setTitle("Link");
     ui->mainToolBar->addWidget(connectionIndicator);
     connectionIndicator->setDiode(StatusIndicator::Red, true);
     connectionIndicator->setDescription("Disconnected");
-
+    
     ui->mainToolBar->addSeparator();
     ui->mainToolBar->addWidget(saveGraphButton);
     ui->mainToolBar->addWidget(saveDataButton);
-
+    
     /* Start new thread and create the device instance */
     communicationsThread.start();
     adaDevice = new ADA2Device(&communicationsThread);
-
-
+    
+    
     /* setup plot widget */
     ui->plot->xAxis->setVisible(false);
     ui->plot->yAxis->setVisible(false);
@@ -74,24 +74,24 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->plot->graph(2)->setPen(QPen(Qt::magenta));
     ui->plot->graph(1)->setBrush(QBrush(QColor(240, 255, 200,100)));
     ui->plot->graph(1)->setChannelFillGraph(ui->plot->graph(2));
-
+    
     /* set labels font size */
     QFont font = ui->plot->font();
     font.setPointSize(12);
     ui->plot->yAxis->setLabelFont(font);
     ui->plot->xAxis->setLabelFont(font);
-
+    
     /* give the axes some labels */
     ui->plot->xAxis->setLabel("Time [Samples]");
     ui->plot->yAxis->setLabel("Amplitude [Sample value]");
-
+    
     /* set axes ranges*/
     ui->plot->yAxis->setRange(-maxRange.first, maxRange.first);
     ui->plot->xAxis->setRange(0.0, maxRange.second);
     ui->plot->setInteractions(QCP::iRangeDrag | QCP::iSelectItems);
     ui->plot->yAxis->grid()->setSubGridVisible(true);
     ui->plot->xAxis->grid()->setSubGridVisible(true);
-
+    
     /* setup markers */
     marker1 = new QCPItemTracer(ui->plot);
     marker2 = new QCPItemTracer(ui->plot);
@@ -105,7 +105,7 @@ MainWindow::MainWindow(QWidget *parent) :
     marker2->setSelectable(true);
     marker1->setVisible(false);
     marker2->setVisible(false);
-
+    
     /* setup connections */
     connect(adaDevice, SIGNAL(newSampleData(QVector<double>)), this, SLOT(newSampleData(QVector<double>)), Qt::QueuedConnection);
     connect(&configWidget, SIGNAL(settingsChanged(ADA2Device::ADASettings)), adaDevice, SLOT(newSettings(ADA2Device::ADASettings)), Qt::QueuedConnection);
@@ -124,8 +124,8 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionQuit, SIGNAL(triggered()), this, SLOT(close()));
     connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(showAbout()));
     connect(ui->actionShow_compression_characteristics, SIGNAL(triggered()), this, SLOT(showDidactics()));
-
-
+    
+    
     /* start main gui timer */
     startTimer(1000);
 }
@@ -149,7 +149,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::newSampleData(QVector<double> data)
 {
-
+    
     if(ui->radioButtonVms->isChecked())
     {
         /* sample conversion */
@@ -157,41 +157,16 @@ void MainWindow::newSampleData(QVector<double> data)
         {
             data[i] *= 3.3/4096;
         }
-
+        
     }
-
-    ui->plot->graph(0)->setData(tick,
-                                data.mid(findTriggerPoint(data, ui->doubleSpinBoxLevel->value(), ui->doubleSpinBoxPrecision->value(),
-                                                          maxRange.first/2048.0, ui->radioButtonRising->isChecked()), 500));
-
-    if(marker1->visible())
-    {
-        ui->label1XValue->setText(QString::number(marker1->graphKey())+ ( (ui->radioButtonSamples->isChecked()) ? "" : " ms") );
-        ui->label1YValue->setText(QString::number(ui->plot->graph(0)->data()->value(marker1->graphKey()).value) + ( (ui->radioButtonSamples->isChecked()) ? "" : " V"));
-    }
-    else
-    {
-        ui->label1XValue->setText("");
-        ui->label1YValue->setText("");
-    }
-    if(marker2->visible())
-    {
-        ui->label2XValue->setText(QString::number(marker2->graphKey())+ ( (ui->radioButtonSamples->isChecked()) ? "" : " ms") );
-        ui->label2YValue->setText(QString::number(ui->plot->graph(0)->data()->value(marker2->graphKey()).value) + ( (ui->radioButtonSamples->isChecked()) ? "" : " V"));
-    }
-    else
-    {
-        ui->label2XValue->setText("");
-        ui->label2YValue->setText("");
-    }
-    if(marker1->visible() && marker2->visible() && ui->radioButtonVms->isChecked())
-    {
-        ui->labelFrequency->setText(QString::number(abs(1.0 / (marker1->graphKey() - marker2->graphKey() ) * 1000  )) + " Hz");
-    }
-    else
-    {
-        ui->labelFrequency->setText("");
-    }
+    
+    qint16 triggerPoint = findTriggerPoint(data, ui->doubleSpinBoxLevel->value(), ui->doubleSpinBoxPrecision->value(), maxRange.first/2048.0, ui->radioButtonRising->isChecked());
+    if(triggerPoint > -1)
+        ui->plot->graph(0)->setData(tick, data.mid(triggerPoint, 500));
+    else if(!ui->checkBoxPlotOnlyWhenTriggered->isChecked())
+        ui->plot->graph(0)->setData(tick, data);
+    
+    updateMarkers();
     ui->plot->replot();
     statusIndicator->setDiode(StatusIndicator::Green, true);
 }
@@ -204,26 +179,21 @@ void MainWindow::startStopConv()
     b = !b;
 }
 
-quint16 MainWindow::findTriggerPoint(const QVector<double> &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling)
+qint16 MainWindow::findTriggerPoint(const QVector<double> &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling)
 {
-    if(data.count() < 10) return 0; //pointless to search for trigger point in smaller vectors
-
-    double currentDeviation = 0.0;
-    for(int d = 0; d < (int)(triggerPrecision/step); d++)
+    if(data.count() < 10) return -1; //pointless to search for trigger point in smaller vectors
+    
+    for(int i = 0; i < data.count()-1; i++)
     {
-        for(int i = 0; i < data.count()-1; i++)
+        if(data.at(i) < triggerLevel+triggerPrecision && data.at(i) > triggerLevel-triggerPrecision)
         {
-            if(data.at(i) < triggerLevel+currentDeviation && data.at(i) > triggerLevel-currentDeviation)
+            if( (risingFalling && (data.at(i+1) > data.at(i))) || (!risingFalling && (data.at(i+1) < data.at(i))) )
             {
-                if( (risingFalling && (data.at(i+1) > data.at(i))) || (!risingFalling && (data.at(i+1) < data.at(i))) )
-                {
-                    return i;
-                }
+                return i;
             }
         }
-        currentDeviation += step;
     }
-    return 0;
+    return -1;
 }
 
 void MainWindow::on_doubleSpinBoxLevel_valueChanged(double arg1)
@@ -234,6 +204,7 @@ void MainWindow::on_doubleSpinBoxLevel_valueChanged(double arg1)
     temp.clear();
     for(double d = 0.0; d < 500.0; d+=1.0) temp.append(arg1-ui->doubleSpinBoxPrecision->value());
     ui->plot->graph(2)->setData(tick, temp);
+    ui->plot->replot();
 }
 
 void MainWindow::on_doubleSpinBoxPrecision_valueChanged(double arg1)
@@ -244,6 +215,7 @@ void MainWindow::on_doubleSpinBoxPrecision_valueChanged(double arg1)
     temp.clear();
     for(double d = 0.0; d < 500.0; d+=1.0) temp.append(ui->doubleSpinBoxLevel->value()-arg1);
     ui->plot->graph(2)->setData(tick, temp);
+    ui->plot->replot();
 }
 
 void MainWindow::displayMessage(QString msg)
@@ -257,7 +229,7 @@ void MainWindow::startConversionClicked()
     ui->plot->xAxis->setVisible(true);
     ui->plot->yAxis->setVisible(true);
     ui->plot->setBackground(QPixmap());
-
+    
     if(adaDevice->getConnectionStatus() == ADA2Device::Connected && adaDevice->getDeviceStatus() == ADA2Device::Configured)
     {
         emit startStopConversionRequest(ADA2Device::Start);
@@ -286,22 +258,22 @@ void MainWindow::settingsClicked()
 
 void MainWindow::saveGraphClicked()
 {
-
+    
     bool okFlag = false;
     int width = QInputDialog::getInt(0, "Save plot...", "Image Width", 1000, 100, 10000, 100, &okFlag);
     if(!okFlag) return;
-
+    
     int height = QInputDialog::getInt(0, "Save plot...", "Image Height", 1000, 100, 10000, 100, &okFlag);
     if(!okFlag) return;
-
-
+    
+    
     QString filter;
     filter.append("Portable Network Graphics (*.png);;");
     filter.append("JPEG (*.jpg);;");
     filter.append("Bitmap (*.bmp);;");
     filter.append("Adobe PDF (*.pdf)");
     QString path = QFileDialog::getSaveFileName(0, "Save plot...", QDir::currentPath(), filter );
-
+    
     QVector<bool> markers;
     markers.append(ui->checkBoxMarker1->isChecked());
     markers.append(ui->checkBoxMarker2->isChecked());
@@ -317,11 +289,11 @@ void MainWindow::saveGraphClicked()
     {
         okFlag = ui->plot->saveRastered(path, width, height, 1.0, 0, 100);
     }
-
+    
     ui->checkBoxMarker1->setChecked(markers.at(0));
     ui->checkBoxMarker2->setChecked(markers.at(1));
     ui->checkBoxShowMarker->setChecked(markers.at(2));
-
+    
     if(!okFlag) QMessageBox::critical(0, "Error", "Error saving file!");
 }
 
@@ -329,37 +301,37 @@ void MainWindow::saveDataClicked()
 {
     /* cpy current data */
     QList<QCPData> graphData = ui->plot->graph(0)->data()->values();
-
+    
     QString filter;
     filter.append("Comma Separated Values file (*.csv)");
     QString path = QFileDialog::getSaveFileName(0, "Save data...", QDir::currentPath(), filter );
-
+    
     if(path.isEmpty())
     {
         QMessageBox::critical(0, "Error", "Error saving file!");
         return;
     }
-
+    
     QFile f(path);
     if(!f.open(QIODevice::WriteOnly|QIODevice::Text))
     {
-       QMessageBox::critical(0, "Error", "Error saving file!");
+        QMessageBox::critical(0, "Error", "Error saving file!");
     }
-
+    
     QTextStream s(&f);
     s<<"PCM-2 data file. "<<QDateTime::currentDateTime().toString()<<endl;
     for(int i = 0; i < graphData.count(); i++)
     {
         s<<QString("%1 %2,").arg(graphData.at(i).key).arg(graphData.at(i).value)<<endl;
     }
-
+    
     f.close();
 }
 
 void MainWindow::deviceStatusChanged(ADA2Device::DeviceStatus status)
 {   
     static ADA2Device::DeviceStatus previousStatus = ADA2Device::Idle;
-
+    
     if(status == ADA2Device::Idle)
     {
         statusIndicator->setDiode(StatusIndicator::Red, true);
@@ -376,7 +348,7 @@ void MainWindow::deviceStatusChanged(ADA2Device::DeviceStatus status)
         statusIndicator->setDiode(StatusIndicator::Green, false);
         statusIndicator->setDescription("Busy");
     }   
-
+    
     previousStatus = status;
 }
 
@@ -397,7 +369,7 @@ void MainWindow::connectionStatusChanged(ADA2Device::ConnectionStatus status)
         connectionIndicator->setDiode(StatusIndicator::Green, true);
         connectionIndicator->setDescription("Connected");
     }
-
+    
 }
 
 void MainWindow::timerEvent(QTimerEvent *event)
@@ -412,7 +384,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     bool moveLeft = false, moveRight = false;
     int stepValue = 1;
-
+    
     if(event->key() == Qt::Key_Left)
     {
         moveLeft = true;
@@ -431,7 +403,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         moveRight = true;
         stepValue = 10;
     }
-
+    
     if(marker1->selected())
     {
         QList<double> keys = ui->plot->graph(0)->data()->keys();
@@ -444,7 +416,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         {
             if(currentKeyIndex + stepValue < keys.size()) marker1->setGraphKey(keys.at(currentKeyIndex+stepValue));
         }
-
+        
     }
     else if(marker2->selected())
     {
@@ -458,10 +430,10 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         {
             if(currentKeyIndex + stepValue < keys.size()) marker2->setGraphKey(keys.at(currentKeyIndex+stepValue));
         }
-
+        
     }
-
-
+    updateMarkers();
+    ui->plot->replot();
     event->accept();
 }
 
@@ -474,109 +446,112 @@ void MainWindow::closeEvent(QCloseEvent *event)
 void MainWindow::on_horizontalSliderVerticalZoom_valueChanged(int value)
 {
     ui->plot->yAxis->setRange(-maxRange.first + (maxRange.first/100*value), maxRange.first - (maxRange.first/100*value) );
+    ui->plot->replot();
 }
 
 void MainWindow::on_horizontalSliderHorizontalZoom_valueChanged(int value)
 {
     ui->plot->xAxis->setRange(0.0, maxRange.second - (maxRange.second/100*value));
+    ui->plot->replot();
 }
 
 void MainWindow::on_radioButtonVms_toggled(bool checked)
 {
     tick.clear();
     double sampleTime;
-
+    
     if(!checked)
     {
-        sampleTime = 1.0;
+        sampleTime = 0.001;
         maxRange.first = 2048;
         if(currentDevSettings.compressionType == ADA2Device::CompressionNone && currentDevSettings.wordLenght == ADA2Device::Word8bits) maxRange.first = 128;
     }
     else
     {
         maxRange.first = 3.3/2;
-
+        
         switch(currentDevSettings.samplingFrequency)
         {
         case ADA2Device::F8KHZ:
             sampleTime = 1.0/8000;
-        break;
-
+            break;
+            
         case ADA2Device::F16KHZ:
             sampleTime = 1.0/16000;
             break;
-
+            
         case ADA2Device::F32KHZ:
             sampleTime = 1.0/32000;
             break;
-
+            
         case ADA2Device::F44_1KHZ:
             sampleTime = 1.0/44100;
             break;
-
+            
         case ADA2Device::F22_05KHZ:
             sampleTime = 1.0 / 22050;
             break;
-
+            
         case ADA2Device::F11_025KHZ:
             sampleTime = 1.0 / 11025;
             break;
-
+            
         default:
             sampleTime = 0;
             break;
         }
     }
-        maxRange.second = sampleTime*400*1000;
-        for(double d = 0.0; d < 500.0; d+=1.0) tick.append(sampleTime*d*1000);
-
-        ui->plot->xAxis->setRange(0.0, maxRange.second);
-        ui->plot->yAxis->setRange(-maxRange.first, maxRange.first);
-
-        double currentTriggerLevel = ui->doubleSpinBoxLevel->value(), currentTriggerPrecision = ui->doubleSpinBoxPrecision->value();
-
-        ui->doubleSpinBoxLevel->setMinimum(-maxRange.first);
-        ui->doubleSpinBoxLevel->setMaximum(maxRange.first);
-        ui->doubleSpinBoxPrecision->setMaximum(maxRange.first / 10.0);
-
-        int sampleMaxValue = 4096;
-        if (currentDevSettings.compressionType == ADA2Device::CompressionNone && currentDevSettings.wordLenght == ADA2Device::Word8bits) sampleMaxValue = 256;
-
-        if(checked)
-        {
-            ui->doubleSpinBoxLevel->setValue(currentTriggerLevel*3.3/sampleMaxValue);
-            ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision*3.3/sampleMaxValue);
-            ui->doubleSpinBoxLevel->setSingleStep(0.01);
-            ui->doubleSpinBoxPrecision->setSingleStep(0.01);
-            ui->plot->xAxis->setLabel("Time [ms]");
-            ui->plot->yAxis->setLabel("Amplitude [V]");
-        }
-        else
-        {
-            ui->doubleSpinBoxLevel->setValue(currentTriggerLevel/3.3*sampleMaxValue);
-            ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision/3.3*sampleMaxValue);
-            ui->doubleSpinBoxLevel->setSingleStep(1.0);
-            ui->doubleSpinBoxPrecision->setSingleStep(1.0);
-            ui->plot->xAxis->setLabel("Time [Samples]");
-            ui->plot->yAxis->setLabel("Amplitude [Sample value]");
-        }
-
-        if(!ui->plot->graph(0)->data()->isEmpty())
-        {
-            marker1->setGraphKey(ui->plot->graph(0)->data()->keys().first());
-            marker2->setGraphKey(ui->plot->graph(0)->data()->keys().first());
-        }
-
-        ui->horizontalSliderHorizontalZoom->setValue(0);
-        ui->horizontalSliderVerticalZoom->setValue(0);
-
-        ui->plot->replot();
+    maxRange.second = sampleTime*400*1000;
+    for(double d = 0.0; d < 500.0; d+=1.0) tick.append(sampleTime*d*1000);
+    
+    ui->plot->xAxis->setRange(0.0, maxRange.second);
+    ui->plot->yAxis->setRange(-maxRange.first, maxRange.first);
+    
+    double currentTriggerLevel = ui->doubleSpinBoxLevel->value(), currentTriggerPrecision = ui->doubleSpinBoxPrecision->value();
+    
+    ui->doubleSpinBoxLevel->setMinimum(-maxRange.first);
+    ui->doubleSpinBoxLevel->setMaximum(maxRange.first);
+    ui->doubleSpinBoxPrecision->setMaximum(maxRange.first / 10.0);
+    
+    int sampleMaxValue = 4096;
+    if (currentDevSettings.compressionType == ADA2Device::CompressionNone && currentDevSettings.wordLenght == ADA2Device::Word8bits) sampleMaxValue = 256;
+    
+    if(checked)
+    {
+        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel*3.3/sampleMaxValue);
+        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision*3.3/sampleMaxValue);
+        ui->doubleSpinBoxLevel->setSingleStep(0.01);
+        ui->doubleSpinBoxPrecision->setSingleStep(0.01);
+        ui->plot->xAxis->setLabel("Time [ms]");
+        ui->plot->yAxis->setLabel("Amplitude [V]");
+    }
+    else
+    {
+        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel/3.3*sampleMaxValue);
+        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision/3.3*sampleMaxValue);
+        ui->doubleSpinBoxLevel->setSingleStep(1.0);
+        ui->doubleSpinBoxPrecision->setSingleStep(1.0);
+        ui->plot->xAxis->setLabel("Time [Samples]");
+        ui->plot->yAxis->setLabel("Amplitude [Sample value]");
+    }
+    
+    if(!ui->plot->graph(0)->data()->isEmpty())
+    {
+        marker1->setGraphKey(ui->plot->graph(0)->data()->keys().first());
+        marker2->setGraphKey(ui->plot->graph(0)->data()->keys().first());
+    }
+    
+    ui->horizontalSliderHorizontalZoom->setValue(0);
+    ui->horizontalSliderVerticalZoom->setValue(0);
+    
+    ui->plot->replot();
 }
 
 void MainWindow::on_checkBoxShowMarker_toggled(bool checked)
 {
     ui->plot->graph(1)->setVisible(checked);
     ui->plot->graph(2)->setVisible(checked);
+    ui->plot->replot();
 }
 
 void MainWindow::setFocus(bool)
@@ -587,33 +562,39 @@ void MainWindow::setFocus(bool)
 void MainWindow::on_checkBoxMarker1_toggled(bool checked)
 {
     marker1->setVisible(checked);
+    ui->plot->replot();
 }
 
 void MainWindow::on_checkBoxMarker2_toggled(bool checked)
 {
     marker2->setVisible(checked);
+    ui->plot->replot();
 }
 
 
 void MainWindow::on_radioButtonLine_toggled(bool checked)
 {
     if(checked) ui->plot->graph(0)->setLineStyle(QCPGraph::lsLine);
+    ui->plot->replot();
 }
 
 void MainWindow::on_radioButtonStep_toggled(bool checked)
 {
     if(checked) ui->plot->graph(0)->setLineStyle(QCPGraph::lsStepLeft);
+    ui->plot->replot();
 }
 
 void MainWindow::on_radioButtonImpulse_toggled(bool checked)
 {
     if(checked) ui->plot->graph(0)->setLineStyle(QCPGraph::lsImpulse);
+    ui->plot->replot();
 }
 
 void MainWindow::on_radioButtonPoint_toggled(bool checked)
 {
     if(checked) ui->plot->graph(0)->setScatterStyle(QCPScatterStyle::ssCircle);
     else ui->plot->graph(0)->setScatterStyle(QCPScatterStyle::ssNone);
+    ui->plot->replot();
 }
 
 void MainWindow::newConfig(ADA2Device::ADASettings settings)
@@ -621,7 +602,7 @@ void MainWindow::newConfig(ADA2Device::ADASettings settings)
     currentDevSettings = settings;
     statusIndicator->setDiode(StatusIndicator::Red, true);
     statusIndicator->setDescription("Idle");
-
+    
     /* invoke this to change axes scale etc */
     on_radioButtonVms_toggled(ui->radioButtonVms->isChecked());
 }
@@ -636,4 +617,36 @@ void MainWindow::showDidactics()
 {
     didacticsWidget.show();
     didacticsWidget.raise();
+}
+
+void MainWindow::updateMarkers()
+{
+    if(marker1->visible())
+    {
+        ui->label1XValue->setText(QString::number(marker1->graphKey())+ ( (ui->radioButtonSamples->isChecked()) ? "" : " ms") );
+        ui->label1YValue->setText(QString::number(ui->plot->graph(0)->data()->value(marker1->graphKey()).value) + ( (ui->radioButtonSamples->isChecked()) ? "" : " V"));
+    }
+    else
+    {
+        ui->label1XValue->setText("");
+        ui->label1YValue->setText("");
+    }
+    if(marker2->visible())
+    {
+        ui->label2XValue->setText(QString::number(marker2->graphKey())+ ( (ui->radioButtonSamples->isChecked()) ? "" : " ms") );
+        ui->label2YValue->setText(QString::number(ui->plot->graph(0)->data()->value(marker2->graphKey()).value) + ( (ui->radioButtonSamples->isChecked()) ? "" : " V"));
+    }
+    else
+    {
+        ui->label2XValue->setText("");
+        ui->label2YValue->setText("");
+    }
+    if(marker1->visible() && marker2->visible() && ui->radioButtonVms->isChecked())
+    {
+        ui->labelFrequency->setText(QString::number(abs(1.0 / (marker1->graphKey() - marker2->graphKey() ) * 1000  )) + " Hz");
+    }
+    else
+    {
+        ui->labelFrequency->setText("");
+    }
 }

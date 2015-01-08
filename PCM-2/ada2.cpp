@@ -196,28 +196,37 @@ void ADA2Device::sendDignosticFrame()
 }
 
 void ADA2Device::dataAvailable()
-{
-
+{    
     buffer.append(readAll());
 
-    if(buffer.size() >= 56*((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50 && deviceStatus == Busy)
+    static const quint8 dataFrameSize = 56;
+    quint16 expextedPayload = (dataFrameSize*SAMPLE_BUFFER_SIZE)/((currentSettings.wordLenght == Word12Bits) ? 25 : 50);
+
+    if(buffer.size() >= expextedPayload && deviceStatus == Busy)
     {
-        //qDebug()<<buffer.toHex()<<buffer.size();
         //searching for data frame
-        while(buffer.at(0) != 100 || buffer.at(55) != 101 || buffer.at(1) != 89 || buffer.at(2) != 0)
+        while(buffer.at(0) != 100 || buffer.at(55) != 101 || !(buffer.at(1) == 89 || buffer.at(1) == 88 )|| buffer.at(2) != 0)
         {
             buffer.remove(0,1);
-            if(buffer.size() < 56*((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50) return;
+            if(buffer.size() < expextedPayload) return;
         }
 
         QVector<double> samples;
 
-        for(int i = 0; i < ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50; i++)
+        for(int i = 0; i < expextedPayload/dataFrameSize; i++)
         {
-            QByteArray frame = buffer.mid(0,56);
+            QByteArray frame = buffer.mid(0,dataFrameSize);
 
             // checking again (next frames can be invalid)
-            if(frame.at(0) != 100 || frame.at(55) != 101 || frame.at(1) != 89)
+            if(frame.at(0) != 100 || frame.at(55) != 101)
+            {
+                return;
+            }
+            if(frame.at(1) != 88 && currentSettings.wordLenght == Word8bits)
+            {
+                return;
+            }
+            if(frame.at(1) != 89 && currentSettings.wordLenght == Word12Bits)
             {
                 return;
             }
@@ -237,48 +246,40 @@ void ADA2Device::dataAvailable()
             {
                 return;
             }
-            else
+
+            for(int b = 0; b < 50; b++)
             {
-                for(int b = 0; b < 50; b++)
+
+                if(currentSettings.wordLenght == Word12Bits)
                 {
-
-                    if(currentSettings.wordLenght == Word12Bits)
-                    {
-                        quint16 sample = (quint8)frame[3+b];
-                        sample <<= 8;
-                        sample &= 0xFF00;
-                        sample |= (quint8)(frame[4+b]);
-                        b++;
-                        samples.append( (double)((qint16)sample)-2048);
-                    }
-                    else if(currentSettings.compressionType == CompressionNone)
-                    {
-                        samples.append( (double)((quint8)frame[3+b])-128);
-                    }
-                    else if(currentSettings.compressionType == CompressionMu)
-                    {
-                        samples.append( (double)(( ulaw2linear(((quint8)frame[3+b]))/16)));
-                    }
-                    else if(currentSettings.compressionType == CompressionA)
-                    {
-                        samples.append( (double)(( alaw2linear(((quint8)frame[3+b]))/16)));
-                    }
-
+                    quint16 sample = (quint8)frame[3+b];
+                    sample <<= 8;
+                    sample &= 0xFF00;
+                    sample |= (quint8)(frame[4+b]);
+                    b++;
+                    samples.append( (double)((qint16)sample)-2048);
+                }
+                else if(currentSettings.compressionType == CompressionNone)
+                {
+                    samples.append( (double)((quint8)frame[3+b])-128);
+                }
+                else if(currentSettings.compressionType == CompressionMu)
+                {
+                    samples.append( (double)(( ulaw2linear(((quint8)frame[3+b]))/16)));
+                }
+                else if(currentSettings.compressionType == CompressionA)
+                {
+                    samples.append( (double)(( alaw2linear(((quint8)frame[3+b]))/16)));
                 }
 
             }
-
-            buffer.remove(0,56);
+            buffer.remove(0, dataFrameSize);
         }
 
-        if(samples.size() == SAMPLE_BUFFER_SIZE/2)
+        if(samples.size() == SAMPLE_BUFFER_SIZE)
         {
             emit newSampleData(samples);
             frameTimeoutCounter = 0;
-        }
-        else
-        {
-            //qDebug()<<samples.count();
         }
     }
     else if(buffer.size() >= 5 && (deviceStatus == Idle || deviceStatus == Configured) )

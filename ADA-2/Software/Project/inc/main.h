@@ -12,7 +12,7 @@
 
 /* CONFIG SECTION */
     typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
-    typedef enum { CompressionNone, CompressionA, CompressionMu, CompressionDigital}                                CompressionType;
+    typedef enum { CompressionNone, CompressionA, CompressionMu } 									                                CompressionType;
     typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
     typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
     typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
@@ -33,7 +33,7 @@
 		
 
 		
-#define SAMPLE_BUFFER_SIZE 1000 //must devide by 50
+#define SAMPLE_BUFFER_SIZE 500 //must devide by 50
 
 /* EO CONFIG SECTION */
 
@@ -72,7 +72,6 @@ void USB_Debug(uint8_t text[], uint8_t len);
 #define OFFSET_12b_1 ((int16_t)0)
 static void DAC_Config(void);
 static void ADC_Config(void);
-static void ADC_ChangeWordLen(WordLenght wl);
 /* EO ANALOG SECTION */
 
 

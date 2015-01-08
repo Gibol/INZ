@@ -29,12 +29,12 @@ int16_t Offset[2] = {0};
 
 /* System variables */
 __IO uint16_t ADCConvertedValue16b[2] = {0};
-//__IO uint8_t ADCConvertedValue8b[2] = {0};
 __ALIGN_BEGIN USB_OTG_CORE_HANDLE    USB_OTG_dev __ALIGN_END ;
 
 /* Sample buffer for USB transmission */
-static volatile uint8_t sampleBuffer[SAMPLE_BUFFER_SIZE];
-static volatile uint16_t dataCounter = 0;
+static volatile uint8_t sampleBuffer8b[SAMPLE_BUFFER_SIZE] = {0};
+static volatile uint16_t sampleBuffer16b[SAMPLE_BUFFER_SIZE] = {0};
+static volatile uint16_t sampleCounter = 0;
 
 /* Configuration structure */
 ADASettings currentSettings;
@@ -81,40 +81,63 @@ int main(void)
 			}
 			configurationChangedFlag = 0;
 			deviceConfiguredFlag = 1;
-			dataCounter = 0;
+			sampleCounter = 0;
 			waveGenCnt = 0;
 			waveGenCnt2 = 0;
 			LED_On(Yellow);
 		}
 		
 		/* Send collected samples when ready, and configured */
-		if(dataCounter == ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2)) 
-			&& devStatus == Busy && deviceConfiguredFlag == 1)
+		if(sampleCounter == SAMPLE_BUFFER_SIZE && devStatus == Busy && deviceConfiguredFlag == 1)
 		{
-			uint16_t mod;
+			uint16_t mod, bval;
 			int i,j;
 			uint8_t frame[56];
 			frame[0] = 100;
-			frame[1] = 89;
 			frame[55] = 101;
 			
-			for(j = 0; j < ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2))/50; j++)
+			if(currentSettings.wordLenght == Word12Bits)
 			{
-				frame[2] = j;
-				mod=0;
-				for(i = 0; i < 50; i++)
-				{
-					frame[i+3] = sampleBuffer[(50*j) + i];
-					mod += sampleBuffer[(50*j) + i];
-				}
-				
-				frame[54] = (uint8_t) mod;
-				frame[53] = (uint8_t)(mod >> 8);
-
-				VCP_DataTx(frame, 56);
-				LED_Toggle(Green);
+					frame[1] = 89;
+					for(j = 0; j < SAMPLE_BUFFER_SIZE / 25; j++) //25 samples per frame!
+					{
+						frame[2] = j;
+						mod = 0;
+						for(i = 0; i < 25; i++)
+						{
+							bval = sampleBuffer16b[(25*j) +i];
+							frame[3 + (i*2) + 1] = ((uint8_t)(bval & 0xFF));
+							mod += ((uint8_t)(bval & 0xFF));
+							frame[3 + (i*2)] = ((uint8_t)(bval >> 8));
+							mod += ((uint8_t)(bval >> 8));
+						}
+					
+					frame[54] = (uint8_t) mod;
+					frame[53] = (uint8_t)(mod >> 8);
+					VCP_DataTx(frame, 56);
+					LED_Toggle(Green);
+					}
 			}
-			dataCounter = 0;
+			else
+			{
+					frame[1] = 88;
+					for(j = 0; j < SAMPLE_BUFFER_SIZE / 50; j++) //50 samples per frame!
+					{
+						frame[2] = j;
+						mod = 0;
+						for(i = 0; i < 50; i++)
+						{
+							frame[3 + i] = sampleBuffer8b[(50*j) +i];
+							mod += sampleBuffer8b[(50*j) +i];
+						}
+					
+					frame[54] = (uint8_t) mod;
+					frame[53] = (uint8_t)(mod >> 8);
+					VCP_DataTx(frame, 56);
+					LED_Toggle(Green);
+					}
+			}
+			sampleCounter = 0;
 		}
 		else if(devStatus == Idle)
 		{
@@ -169,6 +192,9 @@ void TIM_ChangeN(int N)
 
 void TIM6_DAC_IRQHandler(void)
 {	
+	
+	/* clear interrupt flag */
+	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
 	/* sample variable */
 	static int16_t sample;
 	static uint16_t value;	
@@ -176,7 +202,7 @@ void TIM6_DAC_IRQHandler(void)
 	/* take sample from source */
 	if(currentSettings.signalSource == AnalogInput1)
 	{
-			value = ADCConvertedValue16b[0];
+		  value = ADCConvertedValue16b[0];
 	}
 	else if(currentSettings.signalSource == AnalogInput2)
 	{
@@ -190,7 +216,7 @@ void TIM6_DAC_IRQHandler(void)
 			
 	if(currentSettings.wordLenght == Word8bits && currentSettings.compressionType == CompressionNone)
 	{
-			sample = (value >> 16);
+			sample = (value >> 4);
 	}
 	else if(currentSettings.compressionType != CompressionNone)
 	{
@@ -211,19 +237,17 @@ void TIM6_DAC_IRQHandler(void)
 	// from this point we have data that is ready for transmission (0-255 or 0-4095)
 	
 	/* save sample in buffer for usb transmission */
-	if(dataCounter < ((currentSettings.wordLenght == Word12Bits) ? SAMPLE_BUFFER_SIZE : (SAMPLE_BUFFER_SIZE/2)) )
+	if(sampleCounter < SAMPLE_BUFFER_SIZE )
 	{
 		if(currentSettings.wordLenght == Word12Bits)
 		{
-			sampleBuffer[dataCounter+1] = (uint8_t) sample ;
-			sampleBuffer[dataCounter] = ((uint8_t)(sample >> 8)&0xFF) ;
-			dataCounter+=2;
+			sampleBuffer16b[sampleCounter] = sample;
 		}
 		else
 		{
-			sampleBuffer[dataCounter] = sample ;
-			dataCounter++;
+			sampleBuffer8b[sampleCounter] = sample;
 		}
+		sampleCounter++;
 	}
 	
 	if(currentSettings.compressionType != CompressionNone)
@@ -247,8 +271,7 @@ void TIM6_DAC_IRQHandler(void)
 		DAC_SetChannel2Data((currentSettings.wordLenght == Word12Bits || currentSettings.compressionType != CompressionNone) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
 	}
 
-	/* clear interrupt flag */
-	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
+
 }
 
 void compressSample(int16_t *sample)
@@ -509,63 +532,6 @@ static void ADC_Config(void)
 	
 }
 
-static void ADC_ChangeWordLen(WordLenght wl)
-{
-//	/* disable */
-//	//ADC_MultiModeDMARequestAfterLastTransferCmd(DISABLE);
-//	ADC_DMACmd(ADC1, DISABLE);
-//	ADC_Cmd(ADC1, DISABLE);
-//	ADC_Cmd(ADC2, DISABLE);
-//	
-//  ADC_InitTypeDef       ADC_InitStructure;
-//  ADC_CommonInitTypeDef ADC_CommonInitStructure;
-//  DMA_InitTypeDef       DMA_InitStructure;
-//  GPIO_InitTypeDef      GPIO_InitStructure;
-
-
-//  /* DMA2 Stream0 channel2 configuration **************************************/
-//  DMA_InitStructure.DMA_Channel = ADC_DMA_CHANNEL;  
-//  DMA_InitStructure.DMA_PeripheralBaseAddr = (uint32_t)ADC_CCR_ADDRESS;
-//  DMA_InitStructure.DMA_Memory0BaseAddr = (wl == Word12Bits) ? (uint32_t)&ADCConvertedValue16b : (uint32_t)&ADCConvertedValue8b;
-//  DMA_InitStructure.DMA_DIR = DMA_DIR_PeripheralToMemory;
-//  DMA_InitStructure.DMA_BufferSize = 2;
-//  DMA_InitStructure.DMA_PeripheralInc = DMA_PeripheralInc_Disable;
-//  DMA_InitStructure.DMA_MemoryInc = DMA_MemoryInc_Enable;
-//  DMA_InitStructure.DMA_PeripheralDataSize = (wl == Word12Bits) ? DMA_PeripheralDataSize_HalfWord : DMA_PeripheralDataSize_Byte;
-//  DMA_InitStructure.DMA_MemoryDataSize = (wl == Word12Bits) ? DMA_MemoryDataSize_HalfWord : DMA_PeripheralDataSize_Byte;
-//  DMA_InitStructure.DMA_Mode = DMA_Mode_Circular;
-//  DMA_InitStructure.DMA_Priority = DMA_Priority_High;
-//  DMA_InitStructure.DMA_FIFOMode = DMA_FIFOMode_Disable;         
-//  DMA_InitStructure.DMA_FIFOThreshold = DMA_FIFOThreshold_HalfFull;
-//  DMA_InitStructure.DMA_MemoryBurst = DMA_MemoryBurst_Single;
-//  DMA_InitStructure.DMA_PeripheralBurst = DMA_PeripheralBurst_Single;
-//  DMA_Init(DMA_STREAMx, &DMA_InitStructure);
-//  DMA_Cmd(DMA_STREAMx, ENABLE);
-
-
-//  /* ADC Init ****************************************************************/
-//  ADC_InitStructure.ADC_Resolution = (wl == Word12Bits) ? ADC_Resolution_12b : ADC_Resolution_8b;
-//  ADC_InitStructure.ADC_ScanConvMode = DISABLE;
-//  ADC_InitStructure.ADC_ContinuousConvMode = ENABLE;
-//  ADC_InitStructure.ADC_ExternalTrigConvEdge = ADC_ExternalTrigConvEdge_None;
-//  ADC_InitStructure.ADC_ExternalTrigConv = ADC_ExternalTrigConv_T1_CC1;
-//  ADC_InitStructure.ADC_DataAlign = ADC_DataAlign_Right;
-//  ADC_InitStructure.ADC_NbrOfConversion = 1;
-//  ADC_Init(ADC1, &ADC_InitStructure);
-//	ADC_Init(ADC2, &ADC_InitStructure);
-
-// /* Enable DMA request after last transfer (Multi-ADC mode) */
-//  ADC_MultiModeDMARequestAfterLastTransferCmd(ENABLE);
-//	  
-//	/* Enable ADC DMA */
-//  ADC_DMACmd(ADC1, ENABLE);
-//	
-//  /* Enable ADC */
-//  ADC_Cmd(ADC1, ENABLE);
-//	ADC_Cmd(ADC2, ENABLE);
-//	ADC_SoftwareStartConv(ADC1);
-	
-}
 
 void USB_Debug(uint8_t text[], uint8_t len)
 {

@@ -15,94 +15,6 @@
   </property>
   <widget class="QWidget" name="mainWidget">
    <layout class="QGridLayout" name="gridLayout_2">
-    <item row="1" column="0">
-     <widget class="QGroupBox" name="groupBox">
-      <property name="maximumSize">
-       <size>
-        <width>16777215</width>
-        <height>120</height>
-       </size>
-      </property>
-      <property name="toolTip">
-       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Trigger sets the sample value which is selected to be a waveform starting point on the graph.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-      </property>
-      <property name="title">
-       <string>Trigger settings</string>
-      </property>
-      <layout class="QGridLayout" name="gridLayout">
-       <item row="1" column="0">
-        <widget class="QLabel" name="label">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets up the desired trigger level.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string>Level</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="1">
-        <widget class="QDoubleSpinBox" name="doubleSpinBoxLevel">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets up the desired trigger level.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="minimum">
-          <double>-2047.000000000000000</double>
-         </property>
-         <property name="maximum">
-          <double>2048.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="0">
-        <widget class="QLabel" name="label_2">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets the trigger precision.&lt;/p&gt;&lt;p&gt;Due to quantisation levels, triggering on a specific value, set by the level spin box, may not be possible.&lt;/p&gt;&lt;p&gt;You cant tweak it by adding some tolerance (-/+ range).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="text">
-          <string>Precision</string>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="1">
-        <widget class="QDoubleSpinBox" name="doubleSpinBoxPrecision">
-         <property name="toolTip">
-          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets the trigger precision.&lt;/p&gt;&lt;p&gt;Due to quantisation levels, triggering on a specific value, set by the level spin box, may not be possible.&lt;/p&gt;&lt;p&gt;You cant tweak it by adding some tolerance (-/+ range).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-         </property>
-         <property name="maximum">
-          <double>200.000000000000000</double>
-         </property>
-        </widget>
-       </item>
-       <item row="2" column="2">
-        <widget class="QRadioButton" name="radioButton_2">
-         <property name="text">
-          <string>Falling edge</string>
-         </property>
-        </widget>
-       </item>
-       <item row="1" column="2">
-        <widget class="QRadioButton" name="radioButtonRising">
-         <property name="text">
-          <string>Rising edge</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item row="3" column="0" colspan="3">
-        <widget class="QCheckBox" name="checkBoxShowMarker">
-         <property name="text">
-          <string>Show trigger marker</string>
-         </property>
-         <property name="checked">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
     <item row="1" column="1">
      <widget class="QGroupBox" name="groupBox_2">
       <property name="title">
@@ -332,6 +244,101 @@ Scale must be set to Volt / ms. </string>
          </property>
          <property name="autoExclusive">
           <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="1" column="0">
+     <widget class="QGroupBox" name="groupBox">
+      <property name="maximumSize">
+       <size>
+        <width>16777215</width>
+        <height>120</height>
+       </size>
+      </property>
+      <property name="toolTip">
+       <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Trigger sets the sample value which is selected to be a waveform starting point on the graph.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      </property>
+      <property name="title">
+       <string>Trigger settings</string>
+      </property>
+      <layout class="QGridLayout" name="gridLayout">
+       <item row="1" column="0">
+        <widget class="QLabel" name="label">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets up the desired trigger level.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Level</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QDoubleSpinBox" name="doubleSpinBoxLevel">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets up the desired trigger level.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="minimum">
+          <double>-2047.000000000000000</double>
+         </property>
+         <property name="maximum">
+          <double>2048.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QLabel" name="label_2">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets the trigger precision.&lt;/p&gt;&lt;p&gt;Due to quantisation levels, triggering on a specific value, set by the level spin box, may not be possible.&lt;/p&gt;&lt;p&gt;You cant tweak it by adding some tolerance (-/+ range).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="text">
+          <string>Precision</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QDoubleSpinBox" name="doubleSpinBoxPrecision">
+         <property name="toolTip">
+          <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;This spin box sets the trigger precision.&lt;/p&gt;&lt;p&gt;Due to quantisation levels, triggering on a specific value, set by the level spin box, may not be possible.&lt;/p&gt;&lt;p&gt;You cant tweak it by adding some tolerance (-/+ range).&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+         </property>
+         <property name="maximum">
+          <double>200.000000000000000</double>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="2">
+        <widget class="QRadioButton" name="radioButton_2">
+         <property name="text">
+          <string>Falling edge</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="2">
+        <widget class="QRadioButton" name="radioButtonRising">
+         <property name="text">
+          <string>Rising edge</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="2">
+        <widget class="QCheckBox" name="checkBoxShowMarker">
+         <property name="text">
+          <string>Show marker</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0" colspan="2">
+        <widget class="QCheckBox" name="checkBoxPlotOnlyWhenTriggered">
+         <property name="text">
+          <string>Plot only when triggered</string>
          </property>
         </widget>
        </item>
