@@ -398,19 +398,23 @@ style=&quot;font-family: &apos;Georgia,serif&apos;; font-size: 8pt; font-weight:
         <translation>Wzory</translation>
     </message>
     <message>
-        <location filename="didacticswidget.ui" line="36"/>
-        <source>Graphs</source>
-        <translation>Wykresy</translation>
+        <location filename="didacticswidget.ui" line="48"/>
+        <source>Compression curves</source>
+        <translation>Krzywe kompresji</translation>
     </message>
     <message>
-        <location filename="didacticswidget.ui" line="41"/>
+        <source>Graphs</source>
+        <translation type="vanished">Wykresy</translation>
+    </message>
+    <message>
+        <location filename="didacticswidget.ui" line="65"/>
         <source>Input / output comparation</source>
         <translation>Porównanie sygnałów na wejściu i na wyjściu</translation>
     </message>
     <message>
         <location filename="didacticswidget.cpp" line="9"/>
         <source>Didactic informations</source>
-        <translation type="unfinished">Informacje dydaktyczne</translation>
+        <translation>Informacje dydaktyczne</translation>
     </message>
 </context>
 <context>

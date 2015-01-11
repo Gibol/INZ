@@ -48,16 +48,15 @@ uint8_t A_compress(int16_t sample, uint8_t bitLen, float AValue)
     }
 		
     if(value != 0.0f)
-		{
-	
-		if(value <= (1.0f/AValue))
-    {
-       value *= AValue / (1.0 + log(AValue) );
-    }
-    else
-    {
-        value = (1.0 + log(AValue*value) ) / (1.0 + log(AValue) );
-    }
+		{	
+			if(value <= (1.0f/AValue))
+			{
+				 value *= AValue / (1.0 + log(AValue) );
+			}
+			else
+			{
+					value = (1.0 + log(AValue*value) ) / (1.0 + log(AValue) );
+			}
 		}
 		
 		
