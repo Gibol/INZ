@@ -7,19 +7,19 @@
 #include "usbd_desc.h"
 #include "usbd_cdc_vcp.h"
 #include "g711.h"
+#include "analog_companding.h"
 #include <stdio.h>
 
 
 /* CONFIG SECTION */
     typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
-    typedef enum { CompressionNone, CompressionA, CompressionMu } 									                                CompressionType;
-    typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
+    typedef enum { None, ADigital, MuDigital, AAnalog, MuAnalog, Approx13seg }                                      CompressionType;
+    typedef enum { Word4bits=4, Word6bits=6, Word8bits=8, Word10bits = 10, Word12bits=12 }                          WordLenght;
     typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
     typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
     typedef enum { Bit0, Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8, Bit9, Bit10, Bit11, BitRandom, BitNone }   BitError;
-    typedef enum { Idle, Busy }                                                                                     DeviceStatus;
     typedef enum { Start = 255, Stop = 0 }                                                                          StartStopCommand;
-		
+		typedef enum { Idle, Busy, Configured }                                                                         DeviceStatus;
 		typedef enum { F_GROUP1, F_GROUP2 }																																							FrequencyGrpup;
 		
     typedef struct {
@@ -29,6 +29,7 @@
         SignalSource signalSource;
         SignalOutput signalOutput;
         BitError bitError;
+				float analogCompressionParam;
     } ADASettings;
 		
 
@@ -68,8 +69,6 @@ void USB_Debug(uint8_t text[], uint8_t len);
 #define DAC1_GPIO_PIN GPIO_Pin_5
 #define DAC2_GPIO_PIN GPIO_Pin_4
 #define DAC_CLK RCC_APB1Periph_DAC
-#define OFFSET_12b_2 ((int16_t)6)
-#define OFFSET_12b_1 ((int16_t)0)
 static void DAC_Config(void);
 static void ADC_Config(void);
 /* EO ANALOG SECTION */

@@ -31,6 +31,8 @@ private slots:
 
     void on_comboBoxOutput_currentIndexChanged(int index);
 
+    void on_doubleSpinBoxCompressionParam_valueChanged(double arg1);
+
 private:
     Ui::ConfigWidget *ui;
     ADA2Device::ADASettings currentSettings;

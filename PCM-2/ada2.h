@@ -16,7 +16,7 @@
 
 /* CONFIGURATION FRAME - send configuraton parameters to the device
  * TYPE: CONFIG
- * DATA: 6 BYTES  (0 - FREQUENCY; 1 - COMPRESSION; 2 - WORDLENGTH; 3 - INPUT; 4 - OUTPUT; 5 - BITERROR )
+ * DATA: 8 BYTES  (0 - FREQUENCY; 1 - COMPRESSION; 2 - WORDLENGTH; 3 - INPUT; 4 - OUTPUT; 5 - BITERROR, 6-7 - ANALOG COMPRESION PARAMERER )
  * RESPONSE: YES
  * RESPONSE DATA: 0 BYTES
  */
@@ -43,6 +43,7 @@
 #include <QTimerEvent>
 #include <QDebug>
 #include "g711.h"
+#include "analog_companding.h"
 
 class ADA2Device : public QSerialPort
 {
@@ -51,8 +52,8 @@ class ADA2Device : public QSerialPort
 public:
     explicit ADA2Device(QObject *parent = 0);
     typedef enum { F8KHZ, F11_025KHZ, F16KHZ, F22_05KHZ, F32KHZ, F44_1KHZ}                                          SampligFrequency;
-    typedef enum { CompressionNone, CompressionA, CompressionMu }                                                   CompressionType;
-    typedef enum { Word8bits, Word12Bits}                                                                           WordLenght;
+    typedef enum { None, ADigital, MuDigital, AAnalog, MuAnalog, Approx13seg }                                      CompressionType;
+    typedef enum { Word4bits=4, Word6bits=6, Word8bits=8, Word10bits = 10, Word12bits=12 }                          WordLenght;
     typedef enum { AnalogInput1, AnalogInput2, TestSignal1, TestSignal2 }                                           SignalSource;
     typedef enum { AnalogOutput1, AnalogOutput2}                                                                    SignalOutput;
     typedef enum { Bit0, Bit1, Bit2, Bit3, Bit4, Bit5, Bit6, Bit7, Bit8, Bit9, Bit10, Bit11, BitRandom, BitNone }   BitError;
@@ -67,6 +68,7 @@ public:
         SignalSource signalSource;
         SignalOutput signalOutput;
         BitError bitError;
+        quint16 analogCompressionParam;
     } ADASettings;
 
     static ADASettings initSettingsStructure();

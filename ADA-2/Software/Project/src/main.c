@@ -96,7 +96,7 @@ int main(void)
 			frame[0] = 100;
 			frame[55] = 101;
 			
-			if(currentSettings.wordLenght == Word12Bits)
+			if(currentSettings.wordLenght > Word8bits)
 			{
 					frame[1] = 89;
 					for(j = 0; j < SAMPLE_BUFFER_SIZE / 25; j++) //25 samples per frame!
@@ -214,11 +214,11 @@ void TIM6_DAC_IRQHandler(void)
 	}
 	
 			
-	if(currentSettings.wordLenght == Word8bits && currentSettings.compressionType == CompressionNone)
+	if(currentSettings.wordLenght != Word12bits && currentSettings.compressionType == None)
 	{
-			sample = (value >> 4);
+			sample = (value >> (12 - ((int)currentSettings.wordLenght)));
 	}
-	else if(currentSettings.compressionType != CompressionNone)
+	else if(currentSettings.compressionType != None)
 	{
 		/* convert from 12-bit unsigned to signed 16-bit integer to match compander input requerements (this is a losless operation) */
 		value <<= 4; 
@@ -239,7 +239,7 @@ void TIM6_DAC_IRQHandler(void)
 	/* save sample in buffer for usb transmission */
 	if(sampleCounter < SAMPLE_BUFFER_SIZE )
 	{
-		if(currentSettings.wordLenght == Word12Bits)
+		if(currentSettings.wordLenght > Word8bits)
 		{
 			sampleBuffer16b[sampleCounter] = sample;
 		}
@@ -250,7 +250,7 @@ void TIM6_DAC_IRQHandler(void)
 		sampleCounter++;
 	}
 	
-	if(currentSettings.compressionType != CompressionNone)
+	if(currentSettings.compressionType != None)
 	{
 		/* Decompress sample */
 		void decompressSample(int16_t *sample);
@@ -261,14 +261,23 @@ void TIM6_DAC_IRQHandler(void)
 		sample = value;
 	}
 	
+	if(currentSettings.wordLenght == Word6bits || currentSettings.wordLenght == Word10bits)
+	{
+			sample <<= 2;
+	}
+	else if(currentSettings.wordLenght == Word4bits)
+	{
+			sample <<= 4;
+	}
+		
 	/* Output the sample */
   if(currentSettings.signalOutput == AnalogOutput1)
 	{
-		DAC_SetChannel1Data((currentSettings.wordLenght == Word12Bits || currentSettings.compressionType != CompressionNone) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+		DAC_SetChannel1Data((currentSettings.wordLenght > Word8bits ) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
 	}
 	else if(currentSettings.signalOutput == AnalogOutput2)
 	{
-		DAC_SetChannel2Data((currentSettings.wordLenght == Word12Bits || currentSettings.compressionType != CompressionNone) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+		DAC_SetChannel2Data((currentSettings.wordLenght > Word8bits ) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
 	}
 
 
@@ -278,12 +287,24 @@ void compressSample(int16_t *sample)
 {
 	switch((int)currentSettings.compressionType)
 	{
-		case (int)CompressionMu:
+		case (int)MuDigital:
 			*sample = linear2ulaw(*sample);
 			return;
 		
-		case (int)CompressionA:
+		case (int)ADigital:
 			*sample = linear2alaw(*sample);
+			return;
+		
+		case (int)AAnalog:
+			*sample = A_compress((*sample)/16, 12, currentSettings.analogCompressionParam);
+			return;
+				
+		case (int)MuAnalog:
+			*sample = u_compress((*sample)/16, 12, currentSettings.analogCompressionParam);
+			return;
+						
+		case (int)Approx13seg:
+			*sample = seg13_compress((*sample)/16, 12);
 			return;
 		
 		default: 
@@ -293,14 +314,26 @@ void compressSample(int16_t *sample)
 
 void decompressSample(int16_t *sample)
 {
-		switch((int)currentSettings.compressionType)
+	switch((int)currentSettings.compressionType)
 	{
-		case (int)CompressionMu:
+		case (int)MuDigital:
 			*sample = ulaw2linear( ((unsigned char)*sample));
 			return;
 		
-		case (int)CompressionA:
+		case (int)ADigital:
 			*sample = alaw2linear( ((unsigned char)*sample));
+			return;
+		
+		case (int)AAnalog:
+			*sample = A_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam);
+			return;
+				
+		case (int)MuAnalog:
+			*sample = u_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam);
+			return;
+						
+		case (int)Approx13seg:
+			*sample = seg13_expand(((unsigned char)*sample), 12);
 			return;
 		
 		default: 
@@ -322,10 +355,6 @@ void simulateError(int16_t *sample)
 	{
 		(*sample) ^= ( 1 << ((ADCConvertedValue16b[0]+ADCConvertedValue16b[1])%12) );
 	}
-	
-	
-		
-	
 }
 
 int16_t getTestSignalSample(void)

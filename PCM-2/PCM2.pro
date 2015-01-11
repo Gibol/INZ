@@ -22,7 +22,8 @@ SOURCES += main.cpp\
     statusindicator.cpp \
     simpleindicator.cpp \
     aboutwidget.cpp \
-    didacticswidget.cpp
+    didacticswidget.cpp \
+    analog_companding.c
 
 HEADERS  += mainwindow.h \
     qcustomplot.h \
@@ -32,7 +33,8 @@ HEADERS  += mainwindow.h \
     statusindicator.h \
     simpleindicator.h \
     aboutwidget.h \
-    didacticswidget.h
+    didacticswidget.h \
+    analog_companding.h
 
 FORMS    += mainwindow.ui \
     configwidget.ui \
@@ -45,3 +47,7 @@ RESOURCES += \
 
 OTHER_FILES += \
     icon.rc
+
+TRANSLATIONS = pcm_pl.ts
+
+CODECFORTR = UTF-8

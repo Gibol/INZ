@@ -6,7 +6,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    setWindowTitle("PCM-2 v1.0");
+    setWindowTitle("PCM-2 v1.1");
     setWindowIcon(QIcon(":/icon"));
     
     
@@ -26,11 +26,11 @@ MainWindow::MainWindow(QWidget *parent) :
     playButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     stopButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     settingsButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-    saveGraphButton->setText("Save graph");
-    saveDataButton->setText("Save data");
-    playButton->setText("Start conversion");
-    stopButton->setText("Stop conversion");
-    settingsButton->setText("Settings");
+    saveGraphButton->setText(tr("Save graph"));
+    saveDataButton->setText(tr("Save data"));
+    playButton->setText(tr("Start conversion"));
+    stopButton->setText(tr("Stop conversion"));
+    settingsButton->setText(tr("Settings"));
     ui->mainToolBar->addWidget(settingsButton);
     ui->mainToolBar->addSeparator();
     ui->mainToolBar->addWidget(playButton);
@@ -38,16 +38,16 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->mainToolBar->addSeparator();
     
     statusIndicator = new StatusIndicator(ui->mainToolBar);
-    statusIndicator->setTitle("Status");
+    statusIndicator->setTitle(tr("Status"));
     ui->mainToolBar->addWidget(statusIndicator);
     statusIndicator->setDiode(StatusIndicator::Red, true);
-    statusIndicator->setDescription("Unconfigured");
+    statusIndicator->setDescription(tr("Unconfigured"));
     
     connectionIndicator = new StatusIndicator(ui->mainToolBar);
-    connectionIndicator->setTitle("Link");
+    connectionIndicator->setTitle(tr("Link"));
     ui->mainToolBar->addWidget(connectionIndicator);
     connectionIndicator->setDiode(StatusIndicator::Red, true);
-    connectionIndicator->setDescription("Disconnected");
+    connectionIndicator->setDescription(tr("Disconnected"));
     
     ui->mainToolBar->addSeparator();
     ui->mainToolBar->addWidget(saveGraphButton);
@@ -82,8 +82,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->plot->xAxis->setLabelFont(font);
     
     /* give the axes some labels */
-    ui->plot->xAxis->setLabel("Time [Samples]");
-    ui->plot->yAxis->setLabel("Amplitude [Sample value]");
+    ui->plot->xAxis->setLabel(tr("Sample number"));
+    ui->plot->yAxis->setLabel(tr("Sample value"));
     
     /* set axes ranges*/
     ui->plot->yAxis->setRange(-maxRange.first, maxRange.first);
@@ -125,7 +125,6 @@ MainWindow::MainWindow(QWidget *parent) :
     connect(ui->actionAbout, SIGNAL(triggered()), this, SLOT(showAbout()));
     connect(ui->actionShow_compression_characteristics, SIGNAL(triggered()), this, SLOT(showDidactics()));
     
-    
     /* start main gui timer */
     startTimer(1000);
 }
@@ -134,8 +133,10 @@ MainWindow::~MainWindow()
 {
     communicationsThread.exit();
     configWidget.close();
+    aboutWidget.close();
+    didacticsWidget.close();
     delete adaDevice;
-    delete ui;    
+    delete ui;
     delete marker1;
     delete marker2;
     delete saveGraphButton;
@@ -153,14 +154,19 @@ void MainWindow::newSampleData(QVector<double> data)
     if(ui->radioButtonVms->isChecked())
     {
         /* sample conversion */
+        int sampleMaxValue = 4096;
+        if(currentDevSettings.compressionType == ADA2Device::None)
+        {
+            sampleMaxValue = (1 << currentDevSettings.wordLenght);
+        }
         for(int i = 0; i < data.count(); i++)
         {
-            data[i] *= 3.3/4096;
+            data[i] *= 10.0/sampleMaxValue;
         }
         
     }
     
-    qint16 triggerPoint = findTriggerPoint(data, ui->doubleSpinBoxLevel->value(), ui->doubleSpinBoxPrecision->value(), maxRange.first/2048.0, ui->radioButtonRising->isChecked());
+    qint16 triggerPoint = findTriggerPoint(data, ui->doubleSpinBoxLevel->value(), ui->doubleSpinBoxPrecision->value(),ui->radioButtonRising->isChecked());
     if(triggerPoint > -1)
         ui->plot->graph(0)->setData(tick, data.mid(triggerPoint, 500));
     else if(!ui->checkBoxPlotOnlyWhenTriggered->isChecked())
@@ -179,7 +185,7 @@ void MainWindow::startStopConv()
     b = !b;
 }
 
-qint16 MainWindow::findTriggerPoint(const QVector<double> &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling)
+qint16 MainWindow::findTriggerPoint(const QVector<double> &data, double triggerLevel, double triggerPrecision, bool risingFalling)
 {
     if(data.count() < 10) return -1; //pointless to search for trigger point in smaller vectors
     
@@ -241,7 +247,7 @@ void MainWindow::startConversionClicked()
     }
     else //disconnected
     {
-        QMessageBox::critical(0, "Error.", "ADA-2 Device is not connected!", QMessageBox::Ok);
+        QMessageBox::critical(0, tr("Error."), tr("ADA-2 Device is not connected!"), QMessageBox::Ok);
     }
 }
 
@@ -260,10 +266,10 @@ void MainWindow::saveGraphClicked()
 {
     
     bool okFlag = false;
-    int width = QInputDialog::getInt(0, "Save plot...", "Image Width", 1000, 100, 10000, 100, &okFlag);
+    int width = QInputDialog::getInt(0, tr("Save plot..."), tr("Image Width"), 1000, 100, 10000, 100, &okFlag);
     if(!okFlag) return;
     
-    int height = QInputDialog::getInt(0, "Save plot...", "Image Height", 1000, 100, 10000, 100, &okFlag);
+    int height = QInputDialog::getInt(0, tr("Save plot..."), tr("Image Height"), 1000, 100, 10000, 100, &okFlag);
     if(!okFlag) return;
     
     
@@ -272,7 +278,7 @@ void MainWindow::saveGraphClicked()
     filter.append("JPEG (*.jpg);;");
     filter.append("Bitmap (*.bmp);;");
     filter.append("Adobe PDF (*.pdf)");
-    QString path = QFileDialog::getSaveFileName(0, "Save plot...", QDir::currentPath(), filter );
+    QString path = QFileDialog::getSaveFileName(0, tr("Save plot..."), QDir::currentPath(), filter );
     
     QVector<bool> markers;
     markers.append(ui->checkBoxMarker1->isChecked());
@@ -294,7 +300,7 @@ void MainWindow::saveGraphClicked()
     ui->checkBoxMarker2->setChecked(markers.at(1));
     ui->checkBoxShowMarker->setChecked(markers.at(2));
     
-    if(!okFlag) QMessageBox::critical(0, "Error", "Error saving file!");
+    if(!okFlag) QMessageBox::critical(0, tr("Error"), tr("Error saving file!"));
 }
 
 void MainWindow::saveDataClicked()
@@ -304,18 +310,18 @@ void MainWindow::saveDataClicked()
     
     QString filter;
     filter.append("Comma Separated Values file (*.csv)");
-    QString path = QFileDialog::getSaveFileName(0, "Save data...", QDir::currentPath(), filter );
+    QString path = QFileDialog::getSaveFileName(0, tr("Save data..."), QDir::currentPath(), filter );
     
     if(path.isEmpty())
     {
-        QMessageBox::critical(0, "Error", "Error saving file!");
+        QMessageBox::critical(0, tr("Error"), tr("Error saving file!"));
         return;
     }
     
     QFile f(path);
     if(!f.open(QIODevice::WriteOnly|QIODevice::Text))
     {
-        QMessageBox::critical(0, "Error", "Error saving file!");
+        QMessageBox::critical(0, tr("Error"), tr("Error saving file!"));
     }
     
     QTextStream s(&f);
@@ -335,19 +341,19 @@ void MainWindow::deviceStatusChanged(ADA2Device::DeviceStatus status)
     if(status == ADA2Device::Idle)
     {
         statusIndicator->setDiode(StatusIndicator::Red, true);
-        statusIndicator->setDescription("Idle");
+        statusIndicator->setDescription(tr("Idle"));
     }
     else if(status == ADA2Device::Configured)
     {
         statusIndicator->setDiode(StatusIndicator::Yellow, true);
-        statusIndicator->setDescription("Configured");
+        statusIndicator->setDescription(tr("Configured"));
         if(previousStatus != ADA2Device::Configured && !configWidget.isHidden()) configWidget.hide();
     }
     else
     {
         statusIndicator->setDiode(StatusIndicator::Green, false);
-        statusIndicator->setDescription("Busy");
-    }   
+        statusIndicator->setDescription(tr("Busy"));
+    }
     
     previousStatus = status;
 }
@@ -357,17 +363,17 @@ void MainWindow::connectionStatusChanged(ADA2Device::ConnectionStatus status)
     if(status == ADA2Device::Disconnected)
     {
         connectionIndicator->setDiode(StatusIndicator::Red, true);
-        connectionIndicator->setDescription("Disconnected");
+        connectionIndicator->setDescription(tr("Disconnected"));
     }
     else if(status == ADA2Device::Waiting)
     {
         connectionIndicator->setDiode(StatusIndicator::Yellow, true);
-        connectionIndicator->setDescription("Waiting for response");
+        connectionIndicator->setDescription(tr("Waiting for response"));
     }
     else
     {
         connectionIndicator->setDiode(StatusIndicator::Green, true);
-        connectionIndicator->setDescription("Connected");
+        connectionIndicator->setDescription(tr("Connected"));
     }
     
 }
@@ -375,8 +381,8 @@ void MainWindow::connectionStatusChanged(ADA2Device::ConnectionStatus status)
 void MainWindow::timerEvent(QTimerEvent *event)
 {
     if(!userMessages.isEmpty()) ui->statusBar->showMessage(userMessages.dequeue(), 5000);
-    connectionIndicator->setDiode(StatusIndicator::Green, false);
-    statusIndicator->setDiode(StatusIndicator::Green, false);
+    //connectionIndicator->setDiode(StatusIndicator::Green, false);
+    //statusIndicator->setDiode(StatusIndicator::Green, false);
     event->accept();
 }
 
@@ -463,12 +469,18 @@ void MainWindow::on_radioButtonVms_toggled(bool checked)
     if(!checked)
     {
         sampleTime = 0.001;
-        maxRange.first = 2048;
-        if(currentDevSettings.compressionType == ADA2Device::CompressionNone && currentDevSettings.wordLenght == ADA2Device::Word8bits) maxRange.first = 128;
+        if(currentDevSettings.compressionType == ADA2Device::None)
+        {
+            maxRange.first = (1 << (currentDevSettings.wordLenght -1) );
+        }
+        else
+        {
+            maxRange.first = 2048;
+        }
     }
     else
     {
-        maxRange.first = 3.3/2;
+        maxRange.first = 10.0/2;
         
         switch(currentDevSettings.samplingFrequency)
         {
@@ -514,25 +526,29 @@ void MainWindow::on_radioButtonVms_toggled(bool checked)
     ui->doubleSpinBoxPrecision->setMaximum(maxRange.first / 10.0);
     
     int sampleMaxValue = 4096;
-    if (currentDevSettings.compressionType == ADA2Device::CompressionNone && currentDevSettings.wordLenght == ADA2Device::Word8bits) sampleMaxValue = 256;
+    if(currentDevSettings.compressionType == ADA2Device::None)
+    {
+        sampleMaxValue = (1 << currentDevSettings.wordLenght);
+    }
+
     
     if(checked)
     {
-        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel*3.3/sampleMaxValue);
-        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision*3.3/sampleMaxValue);
+        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel*10/sampleMaxValue);
+        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision*10/sampleMaxValue);
         ui->doubleSpinBoxLevel->setSingleStep(0.01);
         ui->doubleSpinBoxPrecision->setSingleStep(0.01);
-        ui->plot->xAxis->setLabel("Time [ms]");
-        ui->plot->yAxis->setLabel("Amplitude [V]");
+        ui->plot->xAxis->setLabel(tr("Time [ms]"));
+        ui->plot->yAxis->setLabel(tr("Amplitude [V]"));
     }
     else
     {
-        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel/3.3*sampleMaxValue);
-        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision/3.3*sampleMaxValue);
+        ui->doubleSpinBoxLevel->setValue(currentTriggerLevel/10*sampleMaxValue);
+        ui->doubleSpinBoxPrecision->setValue(currentTriggerPrecision/10*sampleMaxValue);
         ui->doubleSpinBoxLevel->setSingleStep(1.0);
         ui->doubleSpinBoxPrecision->setSingleStep(1.0);
-        ui->plot->xAxis->setLabel("Time [Samples]");
-        ui->plot->yAxis->setLabel("Amplitude [Sample value]");
+        ui->plot->xAxis->setLabel(tr("Sample number"));
+        ui->plot->yAxis->setLabel(tr("Sample value"));
     }
     
     if(!ui->plot->graph(0)->data()->isEmpty())
@@ -601,7 +617,7 @@ void MainWindow::newConfig(ADA2Device::ADASettings settings)
 {
     currentDevSettings = settings;
     statusIndicator->setDiode(StatusIndicator::Red, true);
-    statusIndicator->setDescription("Idle");
+    statusIndicator->setDescription(tr("Idle"));
     
     /* invoke this to change axes scale etc */
     on_radioButtonVms_toggled(ui->radioButtonVms->isChecked());
@@ -650,3 +666,5 @@ void MainWindow::updateMarkers()
         ui->labelFrequency->setText("");
     }
 }
+
+

@@ -6,7 +6,7 @@ AboutWidget::AboutWidget(QWidget *parent) :
     ui(new Ui::AboutWidget)
 {
     ui->setupUi(this);
-    setWindowTitle("About PCM-2");
+    setWindowTitle(tr("About PCM-2"));
 }
 
 AboutWidget::~AboutWidget()

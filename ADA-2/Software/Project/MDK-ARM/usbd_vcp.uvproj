@@ -440,6 +440,11 @@
               <FileType>1</FileType>
               <FilePath>..\src\g711.c</FilePath>
             </File>
+            <File>
+              <FileName>analog_companding.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\analog_companding.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

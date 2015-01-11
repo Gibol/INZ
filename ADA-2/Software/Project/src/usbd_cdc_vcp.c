@@ -58,7 +58,7 @@ extern uint8_t configurationChangedFlag;
 extern DeviceStatus devStatus;
 extern uint8_t deviceConfiguredFlag;
 	
-#define  CONFIG_FRAME_SIZE  		((uint8_t) 11)
+#define  CONFIG_FRAME_SIZE  		((uint8_t) 13)
 #define  DISCOVERY_FRAME_SIZE 	((uint8_t) 5)
 #define  CONVERSION_FRAME_SIZE  ((uint8_t) 6)
 #define  START_BYTE	 						((uint8_t) 100)
@@ -266,7 +266,7 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 	if(Buf[0] == START_BYTE && Buf[1] == CONFIG_FRAME && Buf[CONFIG_FRAME_SIZE -1] == STOP_BYTE)
 	{
 				uint16_t mod = 0, mod2 = 0;
-				for(i = 0; i < 6; i++)
+				for(i = 0; i < 8; i++)
 				{
 					mod += Buf[2 + i];
 				}
@@ -283,6 +283,10 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 					currentSettings.signalSource = 			(SignalSource) 			Buf[5];
 					currentSettings.signalOutput = 			(SignalOutput) 			Buf[6];
 					currentSettings.bitError = 					(BitError) 					Buf[7];
+					double temp = Buf[8];
+					temp *= 10;
+					temp += Buf[9];
+					currentSettings.analogCompressionParam = temp/10.0f;
 					configurationChangedFlag = 1;
 					
 					/* create and send response */
@@ -290,7 +294,7 @@ uint16_t VCP_DataRx (uint8_t* Buf, uint32_t Len)
 					Buf[3] = 0;
 					Buf[4] = STOP_BYTE;
 					VCP_DataTx(Buf, 5);
-				}				
+				}	
 				return USBD_OK;
 	}
   

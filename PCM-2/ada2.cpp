@@ -21,10 +21,11 @@ ADA2Device::ADASettings ADA2Device::initSettingsStructure()
 
     initStructure.signalOutput = ADA2Device::AnalogOutput1;
     initStructure.bitError = ADA2Device::BitNone;
-    initStructure.compressionType = ADA2Device::CompressionNone;
-    initStructure.samplingFrequency = ADA2Device::F44_1KHZ;
+    initStructure.compressionType = ADA2Device::None;
+    initStructure.samplingFrequency = ADA2Device::F8KHZ;
     initStructure.signalSource = ADA2Device::AnalogInput1;
-    initStructure.wordLenght = ADA2Device::Word12Bits;
+    initStructure.wordLenght = ADA2Device::Word12bits;
+    initStructure.analogCompressionParam = 10; //1.0;
 
     return initStructure;
 }
@@ -45,24 +46,24 @@ void ADA2Device::timerEvent(QTimerEvent *event)
     if(connectionStatus == Disconnected)
     {
         //qDebug()<<"Poszukiwanie urządzenia...";
-        emit message("Searching for device...");
+        emit message(tr("Searching for device..."));
         reset();
         _flushall();
         foreach(QSerialPortInfo i, availablePorts)
         {
             if(i.productIdentifier() == 22336 && i.vendorIdentifier() == 1155)
             {
-                qDebug()<<"Znaleziono urządzenie ADA-2, otwieranie połączenia na"<<i.description();
-                emit message("Found ADA-2 device, opening connection on "+i.description());
+                //qDebug()<<"Znaleziono urządzenie ADA-2, otwieranie połączenia na"<<i.description();
+                emit message(tr("Found ADA-2 device, opening connection on ")+i.description());
                 setPort(i);
                 if(open(QIODevice::ReadWrite))
                 {
-                    qDebug()<<"port otwarty";
-                    emit message("Port Opened.");
+                    //qDebug()<<"port otwarty";
+                    emit message(tr("Port Opened."));
                     if(setPortSettings())
                     {
-                        qDebug()<<"Connection parameters set correctly.";
-                        emit message("Connection parameters set correctly.");
+                        //qDebug()<<"Connection parameters set correctly.";
+                        emit message(tr("Connection parameters set correctly."));
                         sendDignosticFrame();
                         connectionStatus = Waiting;
                     }
@@ -70,7 +71,7 @@ void ADA2Device::timerEvent(QTimerEvent *event)
                 else
                 {
                     //qDebug()<<"błąd otwarcia portu";
-                    emit message("Error opening port");
+                    emit message(tr("Error opening port"));
                     close();
                 }
             }
@@ -138,7 +139,7 @@ void ADA2Device::sendConfigurationFrame()
     mod += (quint8) currentSettings.samplingFrequency;
     data.append((quint8) currentSettings.compressionType);
     mod += (quint8) currentSettings.compressionType;
-    data.append((quint8) currentSettings.wordLenght);
+    data.append(((quint8) currentSettings.wordLenght));
     mod += (quint8) currentSettings.wordLenght;
     data.append((quint8) currentSettings.signalSource);
     mod += (quint8) currentSettings.signalSource;
@@ -146,14 +147,17 @@ void ADA2Device::sendConfigurationFrame()
     mod += (quint8) currentSettings.signalOutput;
     data.append((quint8) currentSettings.bitError);
     mod += (quint8) currentSettings.bitError;
+    data.append((quint8) (currentSettings.analogCompressionParam /10));
+    mod += ((quint8) (currentSettings.analogCompressionParam /10));
+    data.append((quint8) (currentSettings.analogCompressionParam % 10));
+    mod += ((quint8) (currentSettings.analogCompressionParam %10));
     QByteArray modArray(2, (char)0);
     modArray[1] = (quint8) mod;
-    modArray[0] = (quint8) mod >> 8;
+    modArray[0] = (quint8) (mod >> 8);
     data.append(modArray);
     data.append(101);
     write(data);
     deviceStatus = Idle;
-    //qDebug()<<"write config";
     waitForBytesWritten(100);
 }
 
@@ -200,7 +204,7 @@ void ADA2Device::dataAvailable()
     buffer.append(readAll());
 
     static const quint8 dataFrameSize = 56;
-    quint16 expextedPayload = (dataFrameSize*SAMPLE_BUFFER_SIZE)/((currentSettings.wordLenght == Word12Bits) ? 25 : 50);
+    quint16 expextedPayload = (dataFrameSize*SAMPLE_BUFFER_SIZE)/((currentSettings.wordLenght > Word8bits) ? 25 : 50);
 
     if(buffer.size() >= expextedPayload && deviceStatus == Busy)
     {
@@ -212,7 +216,7 @@ void ADA2Device::dataAvailable()
         }
 
         QVector<double> samples;
-
+        //qDebug()<<buffer.size();
         for(int i = 0; i < expextedPayload/dataFrameSize; i++)
         {
             QByteArray frame = buffer.mid(0,dataFrameSize);
@@ -222,11 +226,11 @@ void ADA2Device::dataAvailable()
             {
                 return;
             }
-            if(frame.at(1) != 88 && currentSettings.wordLenght == Word8bits)
+            if(frame.at(1) != 88 && currentSettings.wordLenght <= Word8bits)
             {
                 return;
             }
-            if(frame.at(1) != 89 && currentSettings.wordLenght == Word12Bits)
+            if(frame.at(1) != 89 && currentSettings.wordLenght > Word8bits)
             {
                 return;
             }
@@ -250,26 +254,50 @@ void ADA2Device::dataAvailable()
             for(int b = 0; b < 50; b++)
             {
 
-                if(currentSettings.wordLenght == Word12Bits)
+                if(currentSettings.wordLenght > Word8bits)
                 {
                     quint16 sample = (quint8)frame[3+b];
                     sample <<= 8;
                     sample &= 0xFF00;
                     sample |= (quint8)(frame[4+b]);
                     b++;
-                    samples.append( (double)((qint16)sample)-2048);
+                    samples.append( (double)((qint16)sample)- (1 << (currentSettings.wordLenght -1)));
                 }
-                else if(currentSettings.compressionType == CompressionNone)
+                else if(currentSettings.compressionType == None)
                 {
-                    samples.append( (double)((quint8)frame[3+b])-128);
+                    samples.append( (double)((quint8)frame[3+b])- (1 << (currentSettings.wordLenght -1)) );
                 }
-                else if(currentSettings.compressionType == CompressionMu)
+                else if(currentSettings.compressionType == MuDigital)
                 {
                     samples.append( (double)(( ulaw2linear(((quint8)frame[3+b]))/16)));
                 }
-                else if(currentSettings.compressionType == CompressionA)
+                else if(currentSettings.compressionType == ADigital)
                 {
                     samples.append( (double)(( alaw2linear(((quint8)frame[3+b]))/16)));
+                }
+                else if(currentSettings.compressionType == MuAnalog)
+                {
+                    samples.append( (double)((u_expand( (quint8)frame[3+b], 12, ((float)currentSettings.analogCompressionParam/10.0f)))));
+//                    uint8_t val = ((quint8)frame[3+b]);
+
+//                    if(val & 128) samples.append( (double)(-(val&127)));
+//                    else samples.append( (double)(val));
+                }
+                else if(currentSettings.compressionType == AAnalog)
+                {
+                    samples.append( (double)((A_expand( (quint8)frame[3+b], 12, ((float)currentSettings.analogCompressionParam/10.0f)))));
+//                    uint8_t val = ((quint8)frame[3+b]);
+
+//                    if(val & 128) samples.append( (double)(-(val&127)));
+//                    else samples.append( (double)(val));
+                }
+                else if(currentSettings.compressionType == Approx13seg)
+                {
+                    samples.append( (double)((seg13_expand( (quint8)frame[3+b], 12))));
+//                    uint8_t val = ((quint8)frame[3+b]);
+
+//                    if(val & 128) samples.append( (double)(-(val&127)));
+//                    else samples.append( (double)(val));
                 }
 
             }
@@ -317,7 +345,7 @@ void ADA2Device::handleError(QSerialPort::SerialPortError error)
         close();
         connectionStatus = Disconnected;
         deviceStatus = Idle;
-        emit message("Connection error.");
+        emit message(tr("Connection error."));
     }
 
 }

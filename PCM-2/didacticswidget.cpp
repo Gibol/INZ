@@ -6,7 +6,7 @@ DidacticsWidget::DidacticsWidget(QWidget *parent) :
     ui(new Ui::DidacticsWidget)
 {
     ui->setupUi(this);
-    setWindowTitle("Didactic informations");
+    setWindowTitle(tr("Didactic informations"));
 }
 
 DidacticsWidget::~DidacticsWidget()

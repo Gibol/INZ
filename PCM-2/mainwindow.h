@@ -84,7 +84,7 @@ private:
     AboutWidget aboutWidget;
     QVector<double> tick;
     QThread communicationsThread;
-    qint16 findTriggerPoint(QVector<double> const &data, double triggerLevel, double triggerPrecision, double step, bool risingFalling);
+    qint16 findTriggerPoint(QVector<double> const &data, double triggerLevel, double triggerPrecision, bool risingFalling);
     QQueue<QString> userMessages;
     QPair<double,double> maxRange;
     ADA2Device::ADASettings currentDevSettings;
