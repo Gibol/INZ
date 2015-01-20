@@ -1,7 +1,9 @@
 /* 	Oprogramowanie urzadzenia ADA-2 wykonanego na potrzeby projektu inzynierskiego
 		"Projekt stanowiska laboratoryjnego do badania kodowania PCM 
 		Pawel 'Gibol' Gibaszek
-		Politechnika Wroclawska 2014 */
+		Politechnika Wroclawska 2014 
+		Zabrania sie wykorzystywania kodu zrodlowego programu w innych projektach bez zgody autora.
+		*/
 
 
 /* Includes ------------------------------------------------------------------*/ 
@@ -52,12 +54,6 @@ int main(void)
             &USR_desc, 
             &USBD_CDC_cb, 
             &USR_cb);
-  
-	if (SysTick_Config(SystemCoreClock / 1000))
-  { 
-    //Capture error
-    while (1);
-  }
 	
 	LED_Init();
 	ADC_Config();
@@ -195,9 +191,12 @@ void TIM6_DAC_IRQHandler(void)
 	
 	/* clear interrupt flag */
 	TIM_ClearITPendingBit(TIM6, TIM_IT_Update);	
+	
 	/* sample variable */
 	static int16_t sample;
 	static uint16_t value;	
+	//value = ADCConvertedValue16b[0];
+	//DAC_SetChannel1Data(DAC_Align_12b_R, value);
 	
 	/* take sample from source */
 	if(currentSettings.signalSource == AnalogInput1)
@@ -253,9 +252,10 @@ void TIM6_DAC_IRQHandler(void)
 	if(currentSettings.compressionType != None)
 	{
 		/* Decompress sample */
-		void decompressSample(int16_t *sample);
+		decompressSample(&sample);
 		/* Convert back to 12b unsigned format */
-		value = sample +  32767;
+		value = 32767;
+		value += sample;
 		value >>= 4;
 		
 		sample = value;
@@ -273,11 +273,11 @@ void TIM6_DAC_IRQHandler(void)
 	/* Output the sample */
   if(currentSettings.signalOutput == AnalogOutput1)
 	{
-		DAC_SetChannel1Data((currentSettings.wordLenght > Word8bits ) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+		DAC_SetChannel1Data( ((currentSettings.wordLenght > Word8bits || currentSettings.compressionType != None ) ? DAC_Align_12b_R : DAC_Align_8b_R), sample);
 	}
 	else if(currentSettings.signalOutput == AnalogOutput2)
 	{
-		DAC_SetChannel2Data((currentSettings.wordLenght > Word8bits ) ? DAC_Align_12b_R : DAC_Align_8b_R, sample);
+		DAC_SetChannel2Data(((currentSettings.wordLenght > Word8bits || currentSettings.compressionType != None ) ? DAC_Align_12b_R : DAC_Align_8b_R), sample);
 	}
 
 
@@ -325,15 +325,15 @@ void decompressSample(int16_t *sample)
 			return;
 		
 		case (int)AAnalog:
-			*sample = A_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam);
+			*sample = A_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam)*16;
 			return;
 				
 		case (int)MuAnalog:
-			*sample = u_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam);
+			*sample = u_expand(((unsigned char)*sample), 12, currentSettings.analogCompressionParam)*16;
 			return;
 						
 		case (int)Approx13seg:
-			*sample = seg13_expand(((unsigned char)*sample), 12);
+			*sample = seg13_expand(((unsigned char)*sample), 12)*16;
 			return;
 		
 		default: 

@@ -40,6 +40,16 @@ void ConfigWidget::on_comboBoxCompression_currentIndexChanged(int index)
         ui->doubleSpinBoxCompressionParam->setEnabled(false);
     }
 
+    if(currentSettings.compressionType == ADA2Device::MuAnalog || currentSettings.compressionType == ADA2Device::AAnalog || currentSettings.compressionType == ADA2Device::Approx13seg)
+    {
+        ui->comboBoxFp->setCurrentIndex(((int)ADA2Device::F8KHZ));
+        ui->comboBoxFp->setDisabled(true);
+    }
+    else
+    {
+        ui->comboBoxFp->setDisabled(false);
+    }
+
     if(currentSettings.compressionType != ADA2Device::None)
     {
         ui->comboBoxWordLen->setCurrentIndex(2);

@@ -75,7 +75,7 @@ static void ADC_Config(void);
 
 
 /* TIMER SECTION */
-#define N_DEFAULT F44_1KHZ
+#define N_DEFAULT 5250
 static void TIM_Init(void);
 static void TIM_ChangeN(int N);
 void TIM6_DAC_IRQHandler(void);
